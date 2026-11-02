@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "inputs/.claude/hooks/test_protect_save_access.py",
-      "sha256": "bfcb029986e95e8de661272fc430da3016cbb635d70dd3110f096cefb45b10d6"
+      "sha256": "efe432c1afdf5caeec175d89ac5d51be299fce0f651aa2e68148fde91d67f48e"
     },
     {
       "path": "inputs/.claude/hooks/restore-save-backup.py",

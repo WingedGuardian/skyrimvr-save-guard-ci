@@ -697,6 +697,7 @@ class Wiring(unittest.TestCase):
     def test_wrapper_interpreter_failure_denies(self):
         wrapper = ENTRY.read_text(encoding='utf8')
         python = WRAPPER_PYTHON.search(wrapper).group(1)   # the interpreter the wrapper runs
+        self.assertRegex(python, r'^[A-Za-z]:[/\\]')   # a fixed absolute path, never whatever is first on PATH
         with tempfile.TemporaryDirectory() as temp:
             fixture = Path(temp) / 'save-access-entry.ps1'
             fixture.write_text(wrapper.replace(python, 'C:/nonexistent-save-guard-python.exe'), encoding='utf8')
