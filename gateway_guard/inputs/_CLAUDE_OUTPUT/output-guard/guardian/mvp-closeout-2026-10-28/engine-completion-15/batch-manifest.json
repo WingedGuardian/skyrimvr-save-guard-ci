@@ -1,0 +1,35 @@
+{
+  "run": "engine-completion-15",
+  "desktop": "pending",
+  "launch_authorized": false,
+  "profile": "protected writer-disabled GatewayFollowerContext15; unchanged installed load order",
+  "qualification_segments": [
+    "baseline"
+  ],
+  "native_decision_qualification_calls": 4,
+  "qualification_calls_by_segment": {
+    "baseline": 4
+  },
+  "native_dialogue_case_ceiling": 6,
+  "selected_cases": [
+    "native-wait",
+    "native-resume",
+    "native-dismiss",
+    "gateway-wait",
+    "gateway-resume",
+    "gateway-dismiss"
+  ],
+  "comparison_manifest": "../follower-context-2026-10-31/cases.json",
+  "comparison_manifest_sha256": "3090df1a8d402987ab9c2a1e76cc4f8ca75aed95a742d142159f597dd7aeaf81",
+  "semantic_decisions_max": 0,
+  "semantic_experiments": [],
+  "production_timing_change": false,
+  "fixture": {
+    "actor": "normally recruited loaded companion through existing supported recruitment",
+    "control": "distinct loaded nonparticipant",
+    "ordinary_menu": "separate faithful control or final batched UAT",
+    "missing_prerequisite": "withhold dependent cases; no substitution or automatic retry"
+  },
+  "scope": "Compare SkyrimNet normal action and gateway correction, not model-generation quality or NFF attribution",
+  "retention": "reference by path/hash; no payload staging, links or per-run database copies"
+}

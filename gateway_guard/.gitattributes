@@ -1,0 +1,3 @@
+# Captured inputs are evidence: never change their raw bytes on add/checkout.
+inputs/** -text
+baseline-guard.py -text

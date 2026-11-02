@@ -1,0 +1,39 @@
+# Private project-local gateway runner qualification
+
+## Current packet: 2026-11-01 classifier repair (supersedes the pins-only scope described below)
+
+The candidate CHANGES ALGORITHMS, unlike the earlier pins-only packets. It repairs the runtime save/load rule after the
+Codex gateway session's read-only audit (42 frozen cases: 13 false allows, 6 false refusals). Requests are now judged
+by structure (a key/value pair in any quoting or layout, MCP keys included, plus the position that names the DevBench
+tool) instead of a one-line 100-character word window. Per the user's 2026-11-01 ruling, helper file NAMES no longer
+count; a script's source handed to an interpreter (piped, exec'd, iex'd, dot-sourced, inline -Command, rg --pre) is
+judged as a run of that script. `baseline-guard.py` is the deployed guard (4c11cc98…).
+
+`PinTests` is re-scoped for an algorithm change, and the change is bounded three ways:
+- `test_pin_tables_are_exactly_the_deployed_ones`: `READ_ONLY_SCRIPT_VERBS` and `REVIEWED_NON_SAVE_LIFECYCLE` equal
+  the baseline exactly.
+- `test_only_the_declared_definitions_changed`: the set of changed top-level definitions (by AST) equals
+  `DECLARED_CHANGES`, in both directions.
+- `test_candidate_patch_is_the_exact_diff`: `candidate.patch` is the exact unified diff from baseline to candidate.
+
+`RuntimeRequests` (the frozen audit manifests, copied under `inputs/` with their sha256 asserted, plus replay-derived
+rows and one mutation twin per clause) joins the selected classes. The pins-only `test_old_hash_does_not_authorize_current_runner`
+is retired: with the deployed guard as baseline, the runner's current pin is the expected one. Local evidence for this
+packet, including a replay of every historical Claude and Codex tool call, lives in the install under
+`_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/follower-context-2026-10-31/rewrite-repair-2026-11-01/`.
+
+## Earlier packets
+
+This directory is internal qualification material, not a toolkit feature or a runtime dependency of the SkyrimNet gateway mod. Do not copy it into a public release or deploy it with the toolkit generator. No game assets, saves, databases, provider credentials, prompts or budget ledgers are included.
+
+The exact guard candidate changes only the runner's reviewed hash/dependency/frozen-input data in two existing tables. Its algorithms, registered commands, exact desktop argument restriction, backup/count rules and both real host registrations stay unchanged. The previously proposed MO2/canary exception is absent. `candidate.patch` and `payload-manifest.json` bind exact copied source bytes.
+
+The CI entry point is `python private_qualification/gateway_guard/qualify.py`. It exercises captured existing synthetic save-policy regressions, actual candidate subprocess deny/allow output, exact lifecycle argument and drift refusals, AST/pin invariance, and the actual legacy preservation controller's authored-file/SQLite roundtrip through the new metadata-reference adapter. No payload links are created, and unchanged originals are not copied. Tests use disposable authored fixtures only.
+
+CI is deliberately a partial source environment: it includes the exact runner, adapter, guard, shared preservation implementation and legacy controller, with small frozen metadata. Missing native binaries and runtime inputs are represented by their frozen hashes **only for classifier fixture tests**. A negative test proves the candidate fails without that simulation. This is not installed-input or native acceptance; all295 inputs must pass the real local preflight before use. Unchanged PowerShell/host registration integration and unrelated housekeep-exemption tests are outside this targeted CI suite. The real Codex hook is checked separately after any qualified cutover; no Claude-host acceptance is inferred.
+
+The targeted dispatch mode skips unrelated toolkit jobs explicitly; its green result qualifies this packet only. Normal CI behavior remains the default when that mode is not selected. No tag, release, public push or game launch is authorized by this packet.
+
+Platform scope: Windows runs the full captured Windows save-policy suite plus portable adapter/pin tests (94 tests). Linux runs91, excluding only3 Windows-specific fixture methods: `FreeOperations.test_free`, `SaveFolders.test_code_and_prose_are_not_whole_folder_targets`, and `GatewayLifecycleNonSave.test_frozen_manifest_and_dependency_drift_refuse`. All other captured policy tests, the actual candidate subprocess, the adapter and portable pin tests remain on both platforms. Exclusions are printed explicitly, never counted as passing.
+
+The first hosted run's three Linux failures are retained: Robocopy mistook POSIX absolute fixture paths for Windows flags; a `C:/` parent assertion is not a POSIX root; an old exact-Path mutation fixture did not match backslash-separated frozen keys while the explicit missing-native shim normalized them. Windows passed all94. The portable canonical drift test now checks every frozen input/dependency on both platforms. Guard/runtime source bytes and policy are unchanged; this is not Linux guard support or native acceptance. `--portable-only` locally exercises Linux's supplemental scope. The earlier94/19 local trial is retained; final94/91 checks supersede it.

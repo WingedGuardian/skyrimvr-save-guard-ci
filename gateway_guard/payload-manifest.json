@@ -1,0 +1,72 @@
+{
+  "files": [
+    {
+      "path": "inputs/.claude/hooks/test_protect_save_access.py",
+      "sha256": "bfcb029986e95e8de661272fc430da3016cbb635d70dd3110f096cefb45b10d6"
+    },
+    {
+      "path": "inputs/.claude/hooks/restore-save-backup.py",
+      "sha256": "6118fe35ba773cd520727b59821d93ce3fb9746c7f0e6a3295a1921ff4fdc9e6"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/reference_adapter.py",
+      "sha256": "9bb7f88bc380d6b416bfeab26f357e53c38eaea7b0836c960b5594e1db310201"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/test_reference_adapter.py",
+      "sha256": "ded1da1b16899468e18b92f8ac015e90903142af99dd7e87ab4eb6d8b174f2af"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_run.py",
+      "sha256": "62176cb11bb2aa6218d18cbdec52ab5ea41d85c122451d33ed5f474ca0ab5fd0"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_batch_run.py",
+      "sha256": "f23292ab096f77152ba44c3a69ae747b31851d2d81c806079644546e1a7d678d"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/engine-completion-15/inputs.json",
+      "sha256": "73900a5595193d42ef439d7cab0a3b5de32f2106928c86d15379746e39c3ac33"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/engine-completion-15/batch-manifest.json",
+      "sha256": "bc2960da3b6de9196ebfe79dd31b9ab104e7c0077784ae31e38059cbf88ef669"
+    },
+    {
+      "path": "inputs/tools/skyrim-souls-vr/diagnostic/build.py",
+      "sha256": "c1ca29052873a43248fb32568120bc088370e18b4d34b833d08708143fd6b57e"
+    },
+    {
+      "path": "inputs/tools/skyrim-souls-vr/diagnostic/reference_preservation.py",
+      "sha256": "d0f29bdcebce994ddf0aa749aefef44a0c676ff7add743f011fd94af71b2045e"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/beta28-lifecycle-2026-10-23/config-context.py",
+      "sha256": "1a5537e9abf6841a20419b17173493043826439190f47c0f1ce9d3f8245c9502"
+    },
+    {
+      "path": "inputs/.claude/hooks/protect-save-access.py",
+      "sha256": "70d76e6bba509f0c3aa3c0ba5da7a3c91e5ae9322908b34dc0cd17cce35febc3"
+    },
+    {
+      "path": "baseline-guard.py",
+      "sha256": "4c11cc98ffa28f4e01e1e5f52b43c3739e515e92046726a01f6a59ffb1202293"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/follower-context-2026-10-31/rewrite-audit-2026-11-01/cases.json",
+      "sha256": "b7b64e416aa14f756294b3a4c3a395cbf7aeaf6e53fe36e9cff36570ace44ec9"
+    },
+    {
+      "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/follower-context-2026-10-31/rewrite-audit-2026-11-01/cases-v2.json",
+      "sha256": "826ada256fc4e666e6966b1330ff747300117462d6a26c95a7ebb898ba087d27"
+    },
+    {
+      "path": "candidate.patch",
+      "sha256": "270c59ac60cf25f7c2e1ea672a510eb2eb9470db8959aa232523fdc7787ec054"
+    }
+  ],
+  "scope": "2026-11-01 save-guard classifier repair: structural runtime save/load requests, helper names no longer counted (user ruling), source handed to an interpreter judged as a run. Pin tables unchanged.",
+  "active_guard_changed": false,
+  "game_payloads_copied": false,
+  "missing_native_inputs": "hash-only; runtime preflight still mandatory"
+}

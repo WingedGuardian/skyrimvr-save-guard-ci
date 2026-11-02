@@ -1,0 +1,3 @@
+# Packet bytes are pinned by SHA-256: never convert line endings on checkout.
+gateway_guard/** -text
+requirements.lock -text

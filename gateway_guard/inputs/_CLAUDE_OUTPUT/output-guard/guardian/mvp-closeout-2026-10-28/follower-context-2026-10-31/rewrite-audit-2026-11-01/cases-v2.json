@@ -1,0 +1,14 @@
+{
+  "parent":{"path":"cases.json","sha256":"b7b64e416aa14f756294b3a4c3a395cbf7aeaf6e53fe36e9cff36570ace44ec9"},
+  "scope":"Additional exact PowerShell here-string forms. Parse/classify only; never execute.",
+  "cases":[
+    {"id":"powershell-runtime-save","expected":["deny"],"family":"powershell-runtime","powershell_syntax":true,"command":"@'\nimport requests\nrequests.post(\n 'http://127.0.0.1:8921/api/tool/game',\n json={'action':'save','name':'AuditOnly'})\n'@ | python -"},
+    {"id":"powershell-runtime-load","expected":["deny"],"family":"powershell-runtime","powershell_syntax":true,"command":"@'\nimport requests\nrequests.post(\n 'http://127.0.0.1:8921/api/tool/game',\n json={'action':'load','name':'AuditOnly'})\n'@ | python -"},
+    {"id":"powershell-runtime-papyrus","expected":["deny"],"family":"powershell-runtime","powershell_syntax":true,"command":"@'\nimport requests\nrequests.post('http://127.0.0.1:8921/api/tool/papyrus', json={'action':'call','script':'Game','function':'SaveGame','args':['AuditOnly']})\n'@ | python -"},
+    {"id":"powershell-runtime-console","expected":["deny"],"family":"powershell-runtime","powershell_syntax":true,"command":"@'\nimport requests\nrequests.post('http://127.0.0.1:8921/api/tool/console', json={'action':'exec','command':'save AuditOnly'})\n'@ | python -"},
+    {"id":"powershell-config-decoder-same-line","expected":["allow"],"family":"powershell-context","powershell_syntax":true,"command":"@'\nimport urllib.request,json\ndef read():\n with urllib.request.urlopen('http://127.0.0.1:8080/config?api=get&name=game',timeout=2) as r:return json.load(r)['data']\nprint(read())\n'@ | python -"},
+    {"id":"powershell-config-decoder-separated","expected":["allow"],"family":"powershell-context","powershell_syntax":true,"command":"@'\nimport urllib.request,json\nwith urllib.request.urlopen('http://127.0.0.1:8080/config?api=get&name=game',timeout=2) as r:\n data=json.load(r)['data']\nprint(data)\n'@ | python -"},
+    {"id":"powershell-helper-borrowed-reader","expected":["allow"],"family":"powershell-context","powershell_syntax":true,"command":"@'\nprint(1)\n'@ | python -\nGet-Content path/isolation.py"},
+    {"id":"powershell-reader-then-runtime","expected":["deny"],"family":"powershell-runtime","powershell_syntax":true,"command":"Get-Content notes.txt\n@'\nimport requests\nrequests.post(\n 'http://127.0.0.1:8921/api/tool/game',\n json={'action':'save','name':'AuditOnly'})\n'@ | python -"}
+  ]
+}
