@@ -40,10 +40,14 @@ FAKE = {
     'badjson': "import sys\nsys.stdin.read()\nprint('not json {')\n",
     # a broken guard that echoes its input as invalid JSON: ConvertFrom-Json's message would carry the payload
     'echo_badjson': "import sys\nd = sys.stdin.read()\nprint('{\"partial\": ' + d)\n",
+    # ...and one that puts the payload's command where the parser reports it as an unquoted "primitive": PowerShell
+    # 5.1 builds differ in whether the object-parse error embeds the whole input (Windows 11 does, the CI runner's
+    # Server build says only "Invalid JSON primitive: ."), but both name a bare token in full
+    'echo_primitive': "import json, sys\nd = sys.stdin.read()\nprint('{\"echo\": ' + json.loads(d)['tool_input']['command'] + '}')\n",
     'badjson_70k': "import sys\nsys.stdin.read()\nprint('{' + 'x' * 70000)\n",
 }
 PAYLOAD_MARKER = b'PAYLOAD-SECRET-7f3a'
-MARKED_PAYLOAD = b'{"tool_name":"Bash","tool_input":{"command":"rm ' + PAYLOAD_MARKER + b'"}}'
+MARKED_PAYLOAD = b'{"tool_name":"Bash","tool_input":{"command":"' + PAYLOAD_MARKER + b'"}}'
 
 
 def wrapper_text():
@@ -189,7 +193,7 @@ class WrapperCases(unittest.TestCase):
     def test_payload_is_never_echoed_in_a_deny(self):
         """Every deny path that could carry the payload: a crash (stderr) and a guard that echoes stdin as bad JSON
         (ConvertFrom-Json's message embeds its whole input). The reason also stays bounded for a huge bad decision."""
-        for fake in ('crash', 'echo_badjson'):
+        for fake in ('crash', 'echo_badjson', 'echo_primitive'):
             with self.subTest(fake=fake):
                 _, _, out, _ = self.harness(fake).run(MARKED_PAYLOAD)
                 self.assertNotIn(PAYLOAD_MARKER.decode(), out)
@@ -247,7 +251,8 @@ class WrapperMutationTwins(unittest.TestCase):
 
     def test_forwarding_the_json_exception_message_leaks_the_payload(self):
         m = mutate(self.template, "        $message = 'guard output is not JSON (' + $_.Exception.GetType().Name + ', ' + \"$result\".Length + ' chars)'\n", "")
-        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'echo_badjson', payload=MARKED_PAYLOAD)
+        # echo_primitive, not echo_badjson: only the bare-token error form embeds its text on every PS 5.1 build
+        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'echo_primitive', payload=MARKED_PAYLOAD)
         self.assertIn(PAYLOAD_MARKER.decode(), out, 'mutant survived: the payload did not leak, so the fixed message is not what hides it')
 
     def test_anchoring_the_deadline_at_wrapper_time_breaks_case_6(self):
