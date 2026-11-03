@@ -414,6 +414,19 @@ class RenderContract(unittest.TestCase):
         with self.assertRaises(ValueError):
             render_wrapper.render(t.replace(render_wrapper.PLACEHOLDER, 'x'), 'C:/py/python.exe')
 
+    BUDGET = ('[System.Diagnostics.Process]::GetCurrentProcess().StartTime.ToUniversalTime().AddSeconds(24)',
+              '$childStop = $hardStop.AddSeconds(-3)')
+
+    def test_budget_is_pinned_static(self):
+        """Runtime bounds cannot see this: a 29 s budget measures 26 s when nothing stalls, then crosses the hosts' 30 s
+        fail-open limit on a stall like the one CI showed. Changing the budget must be a deliberate edit here."""
+        t = TEMPLATE.read_text(encoding='utf-8')
+        missing = lambda text: [b for b in self.BUDGET if text.count(b) != 1]
+        self.assertEqual([], missing(t))
+        self.assertTrue(missing(t.replace('AddSeconds(24)', 'AddSeconds(29)')), 'the check cannot see a raised budget')
+        self.assertTrue(missing(t.replace('AddSeconds(-3)', 'AddSeconds(0)')), 'the check cannot see a dropped cleanup reserve')
+        self.assertTrue(missing(t.replace('.StartTime.ToUniversalTime()', '.StartTime')), 'the check cannot see a changed anchor')
+
     def test_template_has_no_private_path(self):
         self.assertIsNone(re.search(r'(?i)c:[/\\]users[/\\]', TEMPLATE.read_text(encoding='utf-8')))
 
