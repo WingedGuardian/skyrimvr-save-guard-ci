@@ -69,7 +69,9 @@ class NonAsciiBackup(unittest.TestCase):
         self.assertEqual(before, (rec['ess']['sha256'], rec['skse']['sha256']))
         self.assertEqual(before, (sha(rec['ess']['backup']), sha(rec['skse']['backup'])))
         self.ess.write_bytes(b'fake-ess-CHANGED')
-        r = subprocess.run([sys.executable, '-B', str(self.box / 'restore-save-backup.py'), 'restore', rec['id']], capture_output=True)
+        # -X utf8 because of a known helper defect, out of this packet's scope: without it the helper restores correctly,
+        # then crashes printing a non-ASCII path to a cp1252 stdout and exits 1 (run 41665057628).
+        r = subprocess.run([sys.executable, '-B', '-X', 'utf8', str(self.box / 'restore-save-backup.py'), 'restore', rec['id']], capture_output=True)
         self.assertEqual(0, r.returncode, 'restore failed: ' + ascii(r.stdout[-300:]) + ascii(r.stderr[-400:]))
         self.assertEqual(before, (sha(self.ess), sha(self.cosave)), 'restore must return the original bytes')
 
