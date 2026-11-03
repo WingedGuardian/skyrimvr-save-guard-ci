@@ -74,7 +74,7 @@
     },
     {
       "path": "inputs/.claude/hooks/test_save_access_entry.py",
-      "sha256": "f613e3e46060fee6e5cd2324cb204746c498cfcc4cca96db9f070b880a8e0694"
+      "sha256": "e6c825873fb11a76ddefa9bbd282ade5d339041cf7b344cf43064483aa4488d7"
     },
     {
       "path": "inputs/.claude/hooks/save-sentinel.py",
