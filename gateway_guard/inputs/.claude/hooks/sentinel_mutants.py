@@ -17,7 +17,7 @@ TWINS = [
      'test_save_sentinel.StateFileRace.test_permanent_replace_failure_removes_tmp_and_logs_once'),
     ('no-read-retry', 'for attempt in range(READ_ATTEMPTS):', 'for attempt in range(1):',
      'test_save_sentinel.StateFileRace.test_transient_read_failure_keeps_the_previous_look'),
-    ('overwrite-unreadable-look', '    if unreadable:\n        log_line(note=', '    if False:\n        log_line(note=',
+    ('run-the-round-on-a-blank-state', "        return None, False\n    guard = guard_module()", "        state = {}\n    guard = guard_module()",
      'test_save_sentinel.StateFileRace.test_read_locked_past_retries_keeps_the_look_on_disk_and_reports_next_round'),
 ]
 

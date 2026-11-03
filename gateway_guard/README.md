@@ -28,8 +28,9 @@ Two hook files that had NO CI until now join the gate. Neither changes a guard d
 - `save-sentinel.py` (PostToolUse): `os.replace` and the state read retry on `PermissionError` (another session's
   sentinel holding the shared state file); the `.tmp-<pid>` never outlives the call. Before, the write raised and
   abandoned a 2.5 MB temp file, and the read fell to an empty state, forgetting the previous look, so a save changed in
-  that window went unreported. `test_save_sentinel.StateFileRace` (3 tests, both runners) and `sentinel_mutants.py`
-  (3 twins on temp copies; the run fails unless all are killed).
+  that window went unreported. A file still locked after the retries skips that whole round without touching the
+  look on disk, so the next round reports the change. `test_save_sentinel.StateFileRace` (4 tests, both runners) and
+  `sentinel_mutants.py` (4 twins on temp copies; the run fails unless all are killed).
 
 `PinTests`, `DECLARED_CHANGES`, `baseline-guard.py` and the guard inputs are exactly the 2026-11-02 packet's.
 

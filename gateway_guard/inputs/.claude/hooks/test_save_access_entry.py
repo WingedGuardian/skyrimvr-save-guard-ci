@@ -26,6 +26,8 @@ import render_wrapper  # noqa: E402
 PS = ['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File']
 DEADLINE = 24.0
 SLACK = 1.5                     # process start/stop overhead allowed on top of a wrapper-internal bound
+NOT_DEADLOCKED = 15.0           # a long decision normally takes 0.3 s and a deadlocked one at least 21 s (the child budget).
+                                # 3.5 s went red once at 5.9 s on a loaded machine, with the code at 0.31 s over 12 runs.
 CASES_RUN = 0
 
 FAKE = {
@@ -181,7 +183,7 @@ class WrapperCases(unittest.TestCase):
         wall, rc, out, _ = self.harness('deny', {'FAKE_N': '70000'}).run()
         self.assertEqual(0, rc)
         self.assertEqual('R' * 70000, deny_reason(out), 'a decision above the pipe buffer must be forwarded whole')
-        self.assertLess(wall, 2.0 + SLACK)
+        self.assertLess(wall, NOT_DEADLOCKED)
 
     def test_4_slow_start_within_budget_is_allowed(self):
         wall, rc, out, _ = self.harness('slow_start', {'FAKE_DELAY': '3'}).run()
@@ -284,10 +286,10 @@ class WrapperMutationTwins(unittest.TestCase):
         m = mutate(m, "        $result = $outTask.Result\n", "        $result = $child.StandardOutput.ReadToEnd()\n")
         wall, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'deny', {'FAKE_N': '70000'})
         forwarded = out.startswith('{') and 'R' * 70000 in out
-        self.assertFalse(forwarded and wall < 2.0 + SLACK, 'mutant survived: case 3 still passes without the async read')
+        self.assertFalse(forwarded and wall < NOT_DEADLOCKED, 'mutant survived: case 3 still passes without the async read')
         # and the healthy template still passes case 3 right now (baseline green, same machine, same minute)
         wall, _, out, _ = self.run_case(self.text, 'deny', {'FAKE_N': '70000'})
-        self.assertEqual('R' * 70000, deny_reason(out)); self.assertLess(wall, 2.0 + SLACK)
+        self.assertEqual('R' * 70000, deny_reason(out)); self.assertLess(wall, NOT_DEADLOCKED)
 
     def test_restoring_a_2s_stdin_wait_breaks_case_4(self):
         """The old wrapper's 2 s handoff allowance is what denied a loaded machine's 10 KB payload: with it back, a
@@ -303,7 +305,7 @@ class WrapperMutationTwins(unittest.TestCase):
         timeout (fail-open). The harness reaps it at DEADLINE + 6 s and reports a wall past the deadline."""
         m = mutate(self.template, "if (-not $write.Wait((Remaining)))", "if (-not $write.Wait())")
         wall, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'slow_start', {'FAKE_DELAY': '40'}, payload=BIG_PAYLOAD)
-        self.assertTrue(wall >= DEADLINE or '(stdin: ' not in out, 'mutant survived: the write still gave up inside the deadline')
+        self.assertGreaterEqual(wall, DEADLINE, 'mutant survived: the write still gave up inside the deadline')
 
     def test_dropping_the_kill_breaks_case_6(self):
         m = mutate(self.template, "            $child.Kill()\n", "")

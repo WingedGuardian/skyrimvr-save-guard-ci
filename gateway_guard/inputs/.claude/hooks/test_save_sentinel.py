@@ -257,7 +257,10 @@ class StateFileRace(SentinelCase):
             if str(self_path) == state_path:
                 raise PermissionError(5, 'Access is denied')
             return real(self_path, *args, **kwargs)
-        with patch.object(Path, 'read_text', always_locked), patch.object(sentinel.time, 'sleep'):
+        # the whole round is skipped: nothing below the read may run on a blank state (false lock notes, repeat warnings)
+        ran = AssertionError('the round ran on a blank state')
+        with patch.object(Path, 'read_text', always_locked), patch.object(sentinel.time, 'sleep'), \
+                patch.object(sentinel, 'look', side_effect=ran), patch.object(sentinel, 'elevated_note', side_effect=ran):
             message, loud = self.step()
         self.assertEqual((None, False), (message, loud))
         self.assertEqual(before, sentinel.STATE.read_bytes(), 'an unreadable look must not be overwritten')

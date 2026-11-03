@@ -74,19 +74,19 @@
     },
     {
       "path": "inputs/.claude/hooks/test_save_access_entry.py",
-      "sha256": "c9e799b6469ddbb1c54902d26a1847035507b68b0269681685eafeb9d5698f4e"
+      "sha256": "c30151edccd6753700fbec077183f356a410dce38b6e317f8f4a5bfd131bb10a"
     },
     {
       "path": "inputs/.claude/hooks/save-sentinel.py",
-      "sha256": "e4df7fc7f12305a92877de31acfa764392406f1c87ffe29a5df0e839b1529137"
+      "sha256": "a0cf6eb8b12c91356eee2091a7ddd716d31a713a7701e0d5604f516a52bd6eee"
     },
     {
       "path": "inputs/.claude/hooks/sentinel_mutants.py",
-      "sha256": "0b3d9f0e81da886f4fa4e0ab31d5c5b73a6a04af4387586825baea0bf851841a"
+      "sha256": "bd837ce22d65d9d0308806c0bbcb2edd4a225d121fbe6dd598b248b028d7b034"
     },
     {
       "path": "inputs/.claude/hooks/test_save_sentinel.py",
-      "sha256": "8d0cc5bc29af75dd800e51a6a641105c32f2911f47d2a9a9e57357e2146a4605"
+      "sha256": "41b0249ce7a58475e8189d39044d54616bbd3f3fa39cec218e2beb7b3594df03"
     }
   ],
   "scope": "2026-11-03 save-guard wrapper hardening + sentinel state-file race, additive to the 2026-11-02 file-tools packet: the PowerShell wrapper (as a template rendered with the runner interpreter) drains stdout asynchronously, names the failing stage in its deny and shares one 24 s deadline (8 s stdin handoff); the sentinel retries a locked state replace/read and never abandons its temp file. Guard inputs and pin tables unchanged by this packet. | previous: 2026-11-02 save guard: each command is parsed for which tool it runs, from which folder, and what it writes. Pin tables unchanged.",

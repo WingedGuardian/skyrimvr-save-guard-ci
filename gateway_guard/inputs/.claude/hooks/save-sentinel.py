@@ -139,8 +139,8 @@ def read_state():
     """The previous look. A PermissionError here is another session's sentinel mid-replace (Windows holds the
     file for the duration): retry briefly rather than forget the previous look, because `state = {}` would also
     drop any save change made in that window from the report. Returns None when the file is still locked after
-    the retries: the caller then compares against nothing this round but MUST NOT overwrite the look on disk, so the
-    next round still compares against it. A missing or corrupt file is a genuine empty state ({})."""
+    the retries: the caller then skips the round and MUST NOT overwrite the look on disk, so the next round still
+    compares against it. A missing or corrupt file is a genuine empty state ({})."""
     for attempt in range(READ_ATTEMPTS):
         try:
             return json.loads(STATE.read_text(encoding='utf-8'))
@@ -180,9 +180,12 @@ def save_state(state):
 def check(payload):
     now = time.time()
     state = read_state()
-    unreadable = state is None                   # locked past the retries: look, but keep the look on disk intact
-    if unreadable:
-        state = {}
+    if state is None:
+        # Locked past the retries: skip this round entirely. Everything below (auto-lock tracking, the elevated warning,
+        # the marked-folder refresh) reads `state`, and running it on a blank one raises false notes (review round 4).
+        # The look on disk survives, so the next round still reports a change made now.
+        log_line(note='state file locked past retries; round skipped, previous look kept')
+        return None, False
     guard = guard_module()
     save_dirs = [str(d) for d in guard.KNOWN_SAVE_DIRS if os.path.isdir(d)]
     marked = state.get('marked')
@@ -238,10 +241,7 @@ def check(payload):
         message = (message + '\n' + elevated) if message else elevated
         loud = True
     state.update({'time': now, 'files': files, 'marked': marked})
-    if unreadable:
-        log_line(note='state file locked past retries; this round not saved so the previous look survives')
-    else:
-        save_state(state)
+    save_state(state)
     return message, loud
 
 
