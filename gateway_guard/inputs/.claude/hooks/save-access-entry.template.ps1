@@ -7,7 +7,12 @@ $childErr = ''
 $errTask = $null
 try {
     $ErrorActionPreference = 'Stop'
-    $inputJson = [Console]::In.ReadToEnd()
+    # Raw bytes in, the same bytes out: hosts send UTF-8, and reading through [Console]::In would decode it with the
+    # console's code page, so re-encoding would garble every non-ASCII character (found by real-guard E2E 2026-11-03).
+    $inputStream = [Console]::OpenStandardInput()
+    $buffer = New-Object System.IO.MemoryStream
+    $inputStream.CopyTo($buffer)
+    $payloadBytes = $buffer.ToArray()
     $guardScript = Join-Path $PSScriptRoot 'protect-save-access.py'
     if ($guardScript.Contains('"')) { throw 'Invalid guard script path.' }
     # One budget for everything: 24 s counted from THIS PROCESS's start (the host's 30 s timer started when it spawned
@@ -22,7 +27,10 @@ try {
     }
     $start = New-Object System.Diagnostics.ProcessStartInfo
     $start.FileName = '__GUARD_PYTHON__'
-    $start.Arguments = '-B "' + $guardScript + '"'
+    # -X utf8: the guard's piped stdin would otherwise decode as the ANSI code page (cp1252), which turns bytes it leaves
+    # undefined (the tail of a curly close-quote, for one) into lone surrogates that crash the Bash path into a
+    # "malformed input" deny, and shows the guard every other non-ASCII path as mojibake.
+    $start.Arguments = '-B -X utf8 "' + $guardScript + '"'
     $start.UseShellExecute = $false
     $start.CreateNoWindow = $true
     $start.RedirectStandardInput = $true
@@ -33,7 +41,7 @@ try {
     # refuses every call as malformed (measured 2026-11-03 on the CI runner and locally under chcp 65001; this
     # install's OEM console never showed it). A BOM-less Unicode encoding has no preamble, and the Framework skips
     # SetConsoleCP for Unicode encodings, so the shared console is untouched. The payload itself is written below as
-    # explicit UTF-8 bytes, so this choice affects only the preamble. Set AFTER the host's stdin was read above.
+    # the host's own bytes, so this choice affects only the preamble.
     [Console]::InputEncoding = New-Object System.Text.UnicodeEncoding($false, $false)
     $child = New-Object System.Diagnostics.Process
     $child.StartInfo = $start
@@ -44,15 +52,11 @@ try {
         $outTask = $child.StandardOutput.ReadToEndAsync()
         $errTask = $child.StandardError.ReadToEndAsync()
         $stage = 'stdin'
-        # Explicit UTF-8 WITHOUT a byte-order mark. .NET Framework encodes StandardInput with Console.InputEncoding;
-        # on a UTF-8 (65001) console that encoding emits a BOM, and the guard's json.load() then refuses every
-        # payload as malformed (seen on the CI runner 2026-11-03; this machine's OEM console hid it).
         # A payload under the pipe buffer (~4 KB) lands at once; a larger one (a 10 KB apply_patch) blocks here until
         # the child starts reading, so a slow interpreter start under load shows up at THIS stage. Either way the
         # child has the whole child budget: there is one deadline, not a separate handoff allowance (the old 2 s one
         # produced the 2026-11-02 "repair the hook" denies on a loaded machine).
-        $payloadBytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($inputJson)
-        $write = $child.StandardInput.BaseStream.WriteAsync($payloadBytes, 0, $payloadBytes.Length)
+        $write =$child.StandardInput.BaseStream.WriteAsync($payloadBytes, 0, $payloadBytes.Length)
         if (-not $write.Wait((Remaining))) { throw 'Save guard input timed out (interpreter slow to start; machine under load?).' }
         $child.StandardInput.Close()
         $stage = 'exit'

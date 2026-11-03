@@ -59,6 +59,16 @@ FAKE = {
                     " 'permissionDecisionReason': 'parsed ' + d['tool_name']}}))\n"),
     'badjson_70k': "import sys\nsys.stdin.read()\nprint('{' + 'x' * 70000)\n",
 }
+FAKE['raw_dump'] = ("import json, sys\nraw = sys.stdin.buffer.read()\n"
+                    "print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',"
+                    " 'permissionDecisionReason': raw.hex()}}))\n")
+# decodes as the real guard does (json.load on sys.stdin, whatever encoding the wrapper's launch gives it)
+FAKE['as_guard'] = ("import json, sys\nd = json.load(sys.stdin)\n"
+                    "print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',"
+                    " 'permissionDecisionReason': d['tool_input']['command'].encode('utf-8', 'backslashreplace').hex()}}))\n")
+# characters whose UTF-8 includes every byte cp1252 leaves undefined, and ones that survive only by accident
+NON_ASCII = 'uü d— a→ l“ r” e… k断 pł zź s\U0001F600 ĀāďĐĝ'
+NON_ASCII_PAYLOAD = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': NON_ASCII}}, ensure_ascii=False).encode('utf-8')
 PAYLOAD_MARKER = b'PAYLOAD-SECRET-7f3a'
 # above the anonymous-pipe buffer (4 KB): the wrapper's stdin write cannot complete until the child reads
 BIG_PAYLOAD = b'{"tool_name":"apply_patch","tool_input":{"command":"' + b'x' * 12000 + b'"}}'
@@ -239,6 +249,19 @@ class WrapperCases(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertEqual('parsed Bash', deny_reason(out), 'the guard did not receive clean JSON: ' + out[:400])
 
+    def test_11_non_ascii_reaches_the_guard_byte_identical(self):
+        _, _, out, _ = self.harness('raw_dump').run(NON_ASCII_PAYLOAD)
+        self.assertEqual(NON_ASCII_PAYLOAD.hex(), deny_reason(out), 'the wrapper changed the bytes it was given')
+
+    def test_11b_byte_identical_on_a_utf8_console_too(self):
+        out = run_in_utf8_console(self.text, 'raw_dump', NON_ASCII_PAYLOAD)
+        self.assertEqual(NON_ASCII_PAYLOAD.hex(), deny_reason(out))
+
+    def test_12_guard_decodes_non_ascii_correctly(self):
+        """Python's UTF-8 mode: the guard reads the command the host sent, with no surrogates and no mojibake."""
+        _, _, out, _ = self.harness('as_guard').run(NON_ASCII_PAYLOAD)
+        self.assertEqual(NON_ASCII.encode('utf-8').hex(), deny_reason(out), 'the guard did not decode the payload as sent')
+
     def test_9_missing_interpreter_denies_naming_start(self):
         broken = render_wrapper.render(TEMPLATE.read_text(encoding='utf-8'), 'C:/no/such/python-3.99.exe')
         _, rc, out, _ = self.harness('allow', text=broken).run()
@@ -346,6 +369,18 @@ class WrapperMutationTwins(unittest.TestCase):
         reason = deny_reason(out)
         self.assertIn('(exitcode: ', reason, 'mutant survived: without the InputEncoding line the guard still parsed its stdin')
         self.assertIn('BOM', reason)
+
+    def test_reading_stdin_as_text_breaks_case_11(self):
+        """The regression that passed five review rounds and CI: decode with the console, re-encode as UTF-8."""
+        m = mutate(self.template, "    $inputStream.CopyTo($buffer)\n    $payloadBytes = $buffer.ToArray()\n",
+                   "    $payloadBytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes([Console]::In.ReadToEnd())\n")
+        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'raw_dump', payload=NON_ASCII_PAYLOAD)
+        self.assertNotEqual(NON_ASCII_PAYLOAD.hex(), deny_reason(out), 'mutant survived: text mode kept the bytes intact')
+
+    def test_dropping_utf8_mode_breaks_case_12(self):
+        m = mutate(self.template, "'-B -X utf8 \"'", "'-B \"'")
+        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'as_guard', payload=NON_ASCII_PAYLOAD)
+        self.assertNotEqual(NON_ASCII.encode('utf-8').hex(), deny_reason(out), 'mutant survived: the guard decoded correctly without UTF-8 mode')
 
     def test_dropping_json_validation_breaks_case_8(self):
         m = mutate(self.template, '        $null = "$result" | ConvertFrom-Json -ErrorAction Stop\n', "")

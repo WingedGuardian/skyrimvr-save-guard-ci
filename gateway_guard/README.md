@@ -20,11 +20,13 @@ Two hook files that had NO CI until now join the gate. Neither changes a guard d
   may spend the whole remaining ~21 s on start plus answer (there is no separate stdin allowance: once the payload is
   written as bytes, a write only blocks for payloads above the pipe buffer, so a second budget would be incoherent); the
   `output-json` deny names only the exception type and output length, never the output (ConvertFrom-Json's message
-  embeds its whole input, which could be the hook payload). The payload is written to the guard as explicit BOM-less
-  UTF-8 bytes: .NET Framework's `StandardInput` uses `Console.InputEncoding`, which on a UTF-8 (65001) console emits
-  a BOM, and the guard's `json.load()` then refuses every call as malformed. This was invisible on the install's OEM
-  console and surfaced on this runner (run 41595187331: the first fake guard that parsed its stdin crashed). Case 10
-  (`strict_json`) and its BOM twin pin it.
+  embeds its whole input, which could be the hook payload). Stdin is byte-transparent: the host's raw bytes are forwarded
+  unchanged, and a BOM-less `Console.InputEncoding` set before `Start()` stops .NET Framework writing a preamble, which on
+  a UTF-8 (65001) console made the guard refuse every call as malformed (invisible on the install's OEM console; surfaced
+  on this runner in run 41595187331). The guard runs with `-X utf8`, because a cp1252 stdin with `surrogateescape` crashed
+  its Bash path on undefined bytes and showed it other non-ASCII as mojibake. Cases 10, 11, 11b and 12 and their twins
+  (one in a hidden new console at code page 65001) pin all of this. Reading stdin as text passed review and CI until a
+  real-guard comparison caught it, which is why case 11 exists.
 - `save-sentinel.py` (PostToolUse): `os.replace` and the state read retry on `PermissionError` (another session's
   sentinel holding the shared state file); the `.tmp-<pid>` never outlives the call. Before, the write raised and
   abandoned a 2.5 MB temp file, and the read fell to an empty state, forgetting the previous look, so a save changed in
