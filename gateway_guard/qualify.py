@@ -163,7 +163,7 @@ class PinTests(unittest.TestCase):
         tag, old, new = got[0]
         self.assertEqual(('insert', []), (tag, old))
         self.assertEqual(1, len(new))
-        self.assertTrue(new[0].startswith("if isinstance(args, str) or ((not tool.startswith('mcp__')) and"), new[0])
+        self.assertTrue(new[0].startswith("if isinstance(args, str) or (not tool.startswith('mcp__') and"), new[0])
         self.assertIn('written = file_tool_change(text, cwd, tool, base)', new[0])
 
     def test_invoked_scripts_is_untouched(self):
@@ -265,7 +265,8 @@ def main():
     windows_policy = os.name == 'nt' and '--portable-only' not in sys.argv[1:]
     windows_only = {('FreeOperations', 'test_free'),
                     ('SaveFolders', 'test_code_and_prose_are_not_whole_folder_targets'),
-                    ('GatewayLifecycleNonSave', 'test_frozen_manifest_and_dependency_drift_refuse')}
+                    ('GatewayLifecycleNonSave', 'test_frozen_manifest_and_dependency_drift_refuse'),
+                    ('FileToolsThatChangeSaves', 'test_each_tool_that_changes_saves_is_guarded')}   # Windows path forms; the hook runs on Windows
     excluded = []
     for name in selected:
         for test in unittest.defaultTestLoader.loadTestsFromTestCase(getattr(policy, name)):
