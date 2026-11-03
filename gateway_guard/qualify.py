@@ -329,6 +329,8 @@ def main():
     wrapper_tests, wrapper_module = wrapper_suite()
     if windows_policy:
         suite.addTests(wrapper_tests)
+        backup_e2e = load(HOOKS/'test_wrapper_nonascii_backup.py', 'captured_wrapper_backup_e2e')
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(backup_e2e.NonAsciiBackup))
     else:
         # the render contract is portable and runs everywhere; the PowerShell cases need the Windows runner
         suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(wrapper_module.RenderContract))

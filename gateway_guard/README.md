@@ -26,7 +26,9 @@ Two hook files that had NO CI until now join the gate. Neither changes a guard d
   on this runner in run 41595187331). The guard runs with `-X utf8`, because a cp1252 stdin with `surrogateescape` crashed
   its Bash path on undefined bytes and showed it other non-ASCII as mojibake. Cases 10, 11, 11b and 12 and their twins
   (one in a hidden new console at code page 65001) pin all of this. Reading stdin as text passed review and CI until a
-  real-guard comparison caught it, which is why case 11 exists.
+  real-guard comparison caught it, which is why case 11 exists. `test_wrapper_nonascii_backup.py` (Windows runner only,
+  never on the install) runs the real pair backup and hash-verified restore on fake saves at a non-ASCII path, because such
+  commands used to crash before reaching that code.
 - `save-sentinel.py` (PostToolUse): `os.replace` and the state read retry on `PermissionError` (another session's
   sentinel holding the shared state file); the `.tmp-<pid>` never outlives the call. Before, the write raised and
   abandoned a 2.5 MB temp file, and the read fell to an empty state, forgetting the previous look, so a save changed in
