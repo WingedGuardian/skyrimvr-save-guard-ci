@@ -16,7 +16,9 @@ Two hook files that had NO CI until now join the gate. Neither changes a guard d
   `qualify.py` fails the Windows job if fewer than nine wrapper HARNESS RUNS happened (`wrapper_cases_run` counts
   wrapper invocations, not test methods), and the Linux job prints a SKIP line, runs the portable `RenderContract`, and
   records `wrapper_cases_run: 0`. The 24 s budget is counted from the wrapper process's own start time with the last
-  3 s reserved for post-timeout cleanup, so the hard ceiling including Kill stays under the hosts' 30 s; the
+  3 s reserved for post-timeout cleanup, so the hard ceiling including Kill stays under the hosts' 30 s; the child
+  may spend the whole remaining ~21 s on start plus answer (there is no separate stdin allowance: once the payload is
+  written as bytes, a write only blocks for payloads above the pipe buffer, so a second budget would be incoherent); the
   `output-json` deny names only the exception type and output length, never the output (ConvertFrom-Json's message
   embeds its whole input, which could be the hook payload). The payload is written to the guard as explicit BOM-less
   UTF-8 bytes: .NET Framework's `StandardInput` uses `Console.InputEncoding`, which on a UTF-8 (65001) console emits

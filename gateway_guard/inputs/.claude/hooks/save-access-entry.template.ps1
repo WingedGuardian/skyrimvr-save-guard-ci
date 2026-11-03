@@ -28,6 +28,13 @@ try {
     $start.RedirectStandardInput = $true
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
+    # .NET Framework builds the child's StandardInput writer from Console.InputEncoding and writes that encoding's
+    # PREAMBLE into the pipe at Start(): on a UTF-8 (65001) console that is a BOM, and the guard's json.load() then
+    # refuses every call as malformed (measured 2026-11-03 on the CI runner and locally under chcp 65001; this
+    # install's OEM console never showed it). A BOM-less Unicode encoding has no preamble, and the Framework skips
+    # SetConsoleCP for Unicode encodings, so the shared console is untouched. The payload itself is written below as
+    # explicit UTF-8 bytes, so this choice affects only the preamble. Set AFTER the host's stdin was read above.
+    [Console]::InputEncoding = New-Object System.Text.UnicodeEncoding($false, $false)
     $child = New-Object System.Diagnostics.Process
     $child.StartInfo = $start
     if (-not $child.Start()) { throw 'Save guard interpreter did not start.' }
@@ -37,14 +44,16 @@ try {
         $outTask = $child.StandardOutput.ReadToEndAsync()
         $errTask = $child.StandardError.ReadToEndAsync()
         $stage = 'stdin'
-        # Up to 8 s for the child to accept its input: interpreter start plus importing the guard, which exceeds
-        # 2 s only when the machine is paging.
         # Explicit UTF-8 WITHOUT a byte-order mark. .NET Framework encodes StandardInput with Console.InputEncoding;
         # on a UTF-8 (65001) console that encoding emits a BOM, and the guard's json.load() then refuses every
         # payload as malformed (seen on the CI runner 2026-11-03; this machine's OEM console hid it).
+        # A payload under the pipe buffer (~4 KB) lands at once; a larger one (a 10 KB apply_patch) blocks here until
+        # the child starts reading, so a slow interpreter start under load shows up at THIS stage. Either way the
+        # child has the whole child budget: there is one deadline, not a separate handoff allowance (the old 2 s one
+        # produced the 2026-11-02 "repair the hook" denies on a loaded machine).
         $payloadBytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($inputJson)
         $write = $child.StandardInput.BaseStream.WriteAsync($payloadBytes, 0, $payloadBytes.Length)
-        if (-not $write.Wait([Math]::Min(8000, (Remaining)))) { throw 'Save guard input timed out (interpreter slow to start; machine under load?).' }
+        if (-not $write.Wait((Remaining))) { throw 'Save guard input timed out (interpreter slow to start; machine under load?).' }
         $child.StandardInput.Close()
         $stage = 'exit'
         if (-not $child.WaitForExit((Remaining))) { throw 'Save guard interpreter timed out.' }

@@ -33,7 +33,8 @@ FAKE = {
     'deny': ("import json, os, sys\nsys.stdin.read()\n"
              "print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',"
              " 'permissionDecisionReason': 'R' * int(os.environ['FAKE_N'])}}))\n"),
-    'slow_start': "import os, sys, time\ntime.sleep(float(os.environ['FAKE_DELAY']))\nsys.stdin.read()\n",
+    'slow_start': ("import os, sys, time\nopen(os.environ['FAKE_PIDFILE'], 'w').write(str(os.getpid()))\n"
+                   "time.sleep(float(os.environ['FAKE_DELAY']))\nsys.stdin.read()\n"),
     'never_exit': ("import os, sys, time\nsys.stdin.read()\n"
                    "open(os.environ['FAKE_PIDFILE'], 'w').write(str(os.getpid()))\ntime.sleep(600)\n"),
     'crash': "import sys\nsys.stdin.read()\nraise RuntimeError('boom-traceback-marker')\n",
@@ -57,6 +58,8 @@ FAKE = {
     'badjson_70k': "import sys\nsys.stdin.read()\nprint('{' + 'x' * 70000)\n",
 }
 PAYLOAD_MARKER = b'PAYLOAD-SECRET-7f3a'
+# above the anonymous-pipe buffer (4 KB): the wrapper's stdin write cannot complete until the child reads
+BIG_PAYLOAD = b'{"tool_name":"apply_patch","tool_input":{"command":"' + b'x' * 12000 + b'"}}'
 MARKED_PAYLOAD = b'{"tool_name":"Bash","tool_input":{"command":"' + PAYLOAD_MARKER + b'"}}'
 
 
@@ -121,6 +124,27 @@ class Harness:
         self.dir.cleanup()
 
 
+def run_in_utf8_console(text, fake, payload):
+    """Run the wrapper under code page 65001 in a hidden NEW console, so the test runner's own console keeps its
+    code page. Handles cannot be inherited into a new console reliably, so the batch file redirects the wrapper's
+    stdin/stdout to files; the deny (or decision) comes back from the output file."""
+    d = Path(tempfile.mkdtemp())
+    (d / 'save-access-entry.ps1').write_text(text, encoding='utf-8', newline='\n')
+    (d / 'protect-save-access.py').write_text(FAKE[fake], encoding='utf-8')
+    (d / 'payload.json').write_bytes(payload)
+    bat = d / 'run.cmd'
+    bat.write_text('@echo off\r\nchcp 65001 >nul\r\npowershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'
+                   + str(d / 'save-access-entry.ps1') + '" < "' + str(d / 'payload.json') + '" > "' + str(d / 'out.txt') + '" 2>&1\r\n',
+                   encoding='ascii')
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    si.wShowWindow = 0                                   # SW_HIDE
+    env = dict(os.environ, FAKE_PIDFILE=str(d / 'pid.txt'))
+    subprocess.run(['cmd.exe', '/d', '/c', str(bat)], creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=si,
+                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env, timeout=DEADLINE + 10)
+    return (d / 'out.txt').read_text(encoding='utf-8', errors='replace').strip()
+
+
 def deny_reason(stdout):
     doc = json.loads(stdout)
     h = doc['hookSpecificOutput']
@@ -165,10 +189,22 @@ class WrapperCases(unittest.TestCase):
         self.assertLess(wall, 8 + SLACK)
 
     def test_5_slow_start_past_budget_denies_naming_stdin(self):
-        wall, rc, out, _ = self.harness('slow_start', {'FAKE_DELAY': '10'}).run()
+        """A payload above the pipe buffer blocks the write until the child reads: a child that never starts reading
+        in time is reported at the stdin stage, inside the absolute deadline."""
+        wall, rc, out, _ = self.harness('slow_start', {'FAKE_DELAY': '40'}).run(BIG_PAYLOAD)
         self.assertEqual(0, rc)
         self.assertIn('(stdin: ', deny_reason(out))
         self.assertLess(wall, DEADLINE)
+
+    def test_5b_slow_start_small_payload_denies_naming_exit(self):
+        """A small payload is in the pipe at once, so the same slow child is caught by the exit wait instead; the
+        deadline is the same. A start of 10 s with a small payload is simply allowed (the child answers in time)."""
+        wall, rc, out, _ = self.harness('slow_start', {'FAKE_DELAY': '40'}).run()
+        self.assertEqual(0, rc)
+        self.assertIn('(exit: ', deny_reason(out))
+        self.assertLess(wall, DEADLINE)
+        wall, rc, out, _ = self.harness('slow_start', {'FAKE_DELAY': '10'}).run()
+        self.assertEqual((0, ''), (rc, out), 'a 10 s start that still answers inside the budget must be allowed')
 
     def test_6_hung_guard_denies_naming_exit_and_is_killed(self):
         h = self.harness('never_exit')
@@ -253,10 +289,21 @@ class WrapperMutationTwins(unittest.TestCase):
         wall, _, out, _ = self.run_case(self.text, 'deny', {'FAKE_N': '70000'})
         self.assertEqual('R' * 70000, deny_reason(out)); self.assertLess(wall, 2.0 + SLACK)
 
-    def test_restoring_the_2s_stdin_wait_breaks_case_4(self):
-        m = mutate(self.template, "[Math]::Min(8000, (Remaining))", "[Math]::Min(2000, (Remaining))")
-        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'slow_start', {'FAKE_DELAY': '3'})
+    def test_restoring_a_2s_stdin_wait_breaks_case_4(self):
+        """The old wrapper's 2 s handoff allowance is what denied a loaded machine's 10 KB payload: with it back, a
+        3 s start with a big payload is refused at the stdin stage; case 4's shape must stay allowed."""
+        m = mutate(self.template, "if (-not $write.Wait((Remaining)))", "if (-not $write.Wait([Math]::Min(2000, (Remaining))))")
+        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'slow_start', {'FAKE_DELAY': '3'}, payload=BIG_PAYLOAD)
         self.assertIn('(stdin: ', deny_reason(out), 'mutant survived: a 2 s stdin wait still allowed a 3 s start')
+        _, _, out, _ = self.run_case(self.text, 'slow_start', {'FAKE_DELAY': '3'}, payload=BIG_PAYLOAD)
+        self.assertEqual('', out, 'healthy template must allow a 3 s start with a big payload')
+
+    def test_unbounded_stdin_wait_breaks_case_5(self):
+        """Without the deadline on the write, a child that never reads a big payload holds the wrapper past the host's
+        timeout (fail-open). The harness reaps it at DEADLINE + 6 s and reports a wall past the deadline."""
+        m = mutate(self.template, "if (-not $write.Wait((Remaining)))", "if (-not $write.Wait())")
+        wall, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'slow_start', {'FAKE_DELAY': '40'}, payload=BIG_PAYLOAD)
+        self.assertTrue(wall >= DEADLINE or '(stdin: ' not in out, 'mutant survived: the write still gave up inside the deadline')
 
     def test_dropping_the_kill_breaks_case_6(self):
         m = mutate(self.template, "            $child.Kill()\n", "")
@@ -284,14 +331,19 @@ class WrapperMutationTwins(unittest.TestCase):
         self.assertIn('(exit: ', deny_reason(out))
         self.assertGreaterEqual(wall, DEADLINE, 'mutant survived: without the start-time anchor the wall still fit the budget')
 
-    def test_writing_stdin_with_a_bom_encoding_breaks_case_10(self):
-        """Twin for the explicit-bytes write: a BOM-emitting encoding (what a UTF-8 console gives StandardInput on
-        .NET Framework) must turn case 10 red everywhere, not only on the CI runner."""
-        m = mutate(self.template, "(New-Object System.Text.UTF8Encoding($false)).GetBytes($inputJson)",
-                   "(New-Object System.Text.UTF8Encoding($true)).GetPreamble() + (New-Object System.Text.UTF8Encoding($true)).GetBytes($inputJson)")
-        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'strict_json', payload=MARKED_PAYLOAD)
-        self.assertIn('(exitcode: ', deny_reason(out), 'mutant survived: a BOM before the payload did not break the strict guard')
-        self.assertIn('STDIN NOT JSON', out)
+    def test_removing_the_input_encoding_line_breaks_case_10_on_a_utf8_console(self):
+        """.NET Framework writes Console.InputEncoding's preamble into the child's stdin at Start(). On a UTF-8 console
+        that is a BOM. This twin runs the wrapper in a HIDDEN NEW CONSOLE set to code page 65001 (nobody's terminal is
+        touched): the healthy template delivers clean JSON there, the template without the InputEncoding line delivers
+        a BOM and the strict guard refuses it. This is the shape that was red on the UTF-8 CI runner (run 41596008285)
+        while every plain-console test stayed green."""
+        healthy = run_in_utf8_console(self.text, 'strict_json', MARKED_PAYLOAD)
+        self.assertEqual('parsed Bash', deny_reason(healthy), 'healthy template under a UTF-8 console: ' + healthy[:300])
+        m = mutate(self.template, "    [Console]::InputEncoding = New-Object System.Text.UnicodeEncoding($false, $false)\n", "")
+        out = run_in_utf8_console(render_wrapper.render(m, sys.executable), 'strict_json', MARKED_PAYLOAD)
+        reason = deny_reason(out)
+        self.assertIn('(exitcode: ', reason, 'mutant survived: without the InputEncoding line the guard still parsed its stdin')
+        self.assertIn('BOM', reason)
 
     def test_dropping_json_validation_breaks_case_8(self):
         m = mutate(self.template, '        $null = "$result" | ConvertFrom-Json -ErrorAction Stop\n', "")

@@ -138,13 +138,15 @@ def log_line(**fields):
 def read_state():
     """The previous look. A PermissionError here is another session's sentinel mid-replace (Windows holds the
     file for the duration): retry briefly rather than forget the previous look, because `state = {}` would also
-    drop any save change made in that window from the report."""
+    drop any save change made in that window from the report. Returns None when the file is still locked after
+    the retries: the caller then compares against nothing this round but MUST NOT overwrite the look on disk, so the
+    next round still compares against it. A missing or corrupt file is a genuine empty state ({})."""
     for attempt in range(READ_ATTEMPTS):
         try:
             return json.loads(STATE.read_text(encoding='utf-8'))
         except PermissionError:
             if attempt + 1 == READ_ATTEMPTS:
-                return {}
+                return None
             time.sleep(0.05)
         except (OSError, ValueError):
             return {}
@@ -178,6 +180,9 @@ def save_state(state):
 def check(payload):
     now = time.time()
     state = read_state()
+    unreadable = state is None                   # locked past the retries: look, but keep the look on disk intact
+    if unreadable:
+        state = {}
     guard = guard_module()
     save_dirs = [str(d) for d in guard.KNOWN_SAVE_DIRS if os.path.isdir(d)]
     marked = state.get('marked')
@@ -233,7 +238,10 @@ def check(payload):
         message = (message + '\n' + elevated) if message else elevated
         loud = True
     state.update({'time': now, 'files': files, 'marked': marked})
-    save_state(state)
+    if unreadable:
+        log_line(note='state file locked past retries; this round not saved so the previous look survives')
+    else:
+        save_state(state)
     return message, loud
 
 

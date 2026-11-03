@@ -243,6 +243,28 @@ class StateFileRace(SentinelCase):
         self.assertIn('a.ess', message or '')
         self.assertEqual(2, len(calls))
 
+    def test_read_locked_past_retries_keeps_the_look_on_disk_and_reports_next_round(self):
+        """A lock that outlasts the retries costs one silent round, never the previous look: the state file is left
+        exactly as it was, and the NEXT round reports the change made during the lock."""
+        a = self.save(self.saves, 'a')
+        self.step()
+        before = sentinel.STATE.read_bytes()
+        self.bump(a, b'changed')
+        state_path = str(sentinel.STATE)
+        real = Path.read_text
+
+        def always_locked(self_path, *args, **kwargs):
+            if str(self_path) == state_path:
+                raise PermissionError(5, 'Access is denied')
+            return real(self_path, *args, **kwargs)
+        with patch.object(Path, 'read_text', always_locked), patch.object(sentinel.time, 'sleep'):
+            message, loud = self.step()
+        self.assertEqual((None, False), (message, loud))
+        self.assertEqual(before, sentinel.STATE.read_bytes(), 'an unreadable look must not be overwritten')
+        message, loud = self.step()                                   # lock gone: the change is still reportable
+        self.assertTrue(loud)
+        self.assertIn('a.ess', message or '')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
