@@ -7,15 +7,20 @@ double quote, which the PowerShell single-quoted literal cannot carry safely int
     python render_wrapper.py <template> <python_path> <out>
 """
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 PLACEHOLDER = '__GUARD_PYTHON__'
+
+
+def is_absolute(python_path):
+    """Absolute in either flavour: the template is rendered on a Linux runner too, where `C:/...` is not absolute."""
+    return PureWindowsPath(python_path).is_absolute() or PurePosixPath(python_path).is_absolute()
 
 
 def render(template_text, python_path):
     if '"' in python_path or "'" in python_path or '\n' in python_path:
         raise ValueError('interpreter path may not contain quotes or newlines')
-    if not Path(python_path).is_absolute():
+    if not is_absolute(python_path):
         raise ValueError('interpreter path must be absolute')
     if template_text.count(PLACEHOLDER) != 1:
         raise ValueError('template must contain the placeholder exactly once')

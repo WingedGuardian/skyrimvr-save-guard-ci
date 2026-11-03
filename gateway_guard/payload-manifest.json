@@ -70,11 +70,11 @@
     },
     {
       "path": "inputs/.claude/hooks/render_wrapper.py",
-      "sha256": "bbaba672b32711e3fecb30fefbf50c47186efc832edba5193b824389e4881a3d"
+      "sha256": "dc82f435dd6cd2d0b5e19fb92f058e75e8fe0971e66b7802f8339008ed9372c8"
     },
     {
       "path": "inputs/.claude/hooks/test_save_access_entry.py",
-      "sha256": "c4c395861f95fab3f532fef439adf1461b8ace3c38ff251088fdf78160c9bf84"
+      "sha256": "37fc6dafc2af036d83b68d6b81dc9e62e47649035b7eba73c67aac89b4af858d"
     },
     {
       "path": "inputs/.claude/hooks/save-sentinel.py",

@@ -237,14 +237,26 @@ def wrapper_suite():
     return suite, module
 
 
-def sentinel_suite():
-    """PostToolUse save sentinel: the packet copy beside its tests (SENTINEL_SCRIPT unset = the file beside the test)."""
+SENTINEL_WINDOWS_ONLY = {
+    # auto-lock is `os.name == 'nt'` only (NTFS deny rules via icacls); the test asserts locks were taken
+    ('Sentinel', 'test_auto_lock_locks_settled_saves_once_and_skips_rotating_and_fresh'),
+}
+
+
+def sentinel_suite(windows_policy):
+    """PostToolUse save sentinel: the packet copy beside its tests (SENTINEL_SCRIPT unset = the file beside the test).
+    Returns (suite, excluded names): the Windows-only methods are skipped on other runners and reported, as the
+    guard's own `windows_only` set is."""
     os.environ.pop('SENTINEL_SCRIPT', None)
     module = load(HOOKS/'test_save_sentinel.py', 'captured_sentinel_tests')
-    suite = unittest.TestSuite()
+    suite, excluded = unittest.TestSuite(), []
     for name in ('Sentinel', 'StateFileRace'):
-        suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(getattr(module, name)))
-    return suite
+        for test in unittest.defaultTestLoader.loadTestsFromTestCase(getattr(module, name)):
+            if not windows_policy and (name, test._testMethodName) in SENTINEL_WINDOWS_ONLY:
+                excluded.append(name + '.' + test._testMethodName)
+            else:
+                suite.addTest(test)
+    return suite, excluded
 
 
 def sentinel_twins():
@@ -317,7 +329,7 @@ def main():
     wrapper_tests, wrapper_module = wrapper_suite()
     if windows_policy:
         suite.addTests(wrapper_tests)
-    sentinel_tests = sentinel_suite()
+    sentinel_tests, sentinel_excluded = sentinel_suite(windows_policy)
     suite.addTests(sentinel_tests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     wrapper_cases = wrapper_module.CASES_RUN
@@ -329,7 +341,8 @@ def main():
         scope='windows_full_policy_and_portable' if windows_policy else 'portable_policy_adapter_and_packet_pins',
         windows_only_fixture_methods_excluded=excluded, full_windows_policy_exercised=windows_policy,
         wrapper_cases_run=wrapper_cases, wrapper_cases_required=windows_policy, wrapper_cases_ok=wrapper_ok,
-        sentinel_tests=sentinel_tests.countTestCases(), sentinel_twins_all_killed=twins_ok,
+        sentinel_tests=sentinel_tests.countTestCases(), sentinel_windows_only_excluded=sentinel_excluded,
+        sentinel_twins_all_killed=twins_ok,
         missing_native_inputs_simulated=len(simulated), native_acceptance=False,
         actual_host_hook_acceptance=False, game_calls=0, provider_calls=0)))
     return 0 if result.wasSuccessful() and unchanged and wrapper_ok and twins_ok else 1

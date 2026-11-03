@@ -246,6 +246,9 @@ class RenderContract(unittest.TestCase):
             render_wrapper.render(t, 'C:/py/"python.exe')
         with self.assertRaises(ValueError):
             render_wrapper.render(t, 'python.exe')
+        # both flavours of absolute render on either runner (the Linux job renders the template too)
+        self.assertNotIn(render_wrapper.PLACEHOLDER, render_wrapper.render(t, '/usr/bin/python3'))
+        self.assertNotIn(render_wrapper.PLACEHOLDER, render_wrapper.render(t, 'C:\\py\\python.exe'))
         with self.assertRaises(ValueError):
             render_wrapper.render(t.replace(render_wrapper.PLACEHOLDER, 'x'), 'C:/py/python.exe')
 
