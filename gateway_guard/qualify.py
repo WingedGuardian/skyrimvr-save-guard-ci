@@ -329,6 +329,10 @@ def main():
     wrapper_tests, wrapper_module = wrapper_suite()
     if windows_policy:
         suite.addTests(wrapper_tests)
+    else:
+        # the render contract is portable and runs everywhere; the PowerShell cases need the Windows runner
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(wrapper_module.RenderContract))
+        print('SKIP wrapper PowerShell cases: not Windows (RenderContract still runs)')
     sentinel_tests, sentinel_excluded = sentinel_suite(windows_policy)
     suite.addTests(sentinel_tests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)

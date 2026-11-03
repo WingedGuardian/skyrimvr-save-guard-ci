@@ -38,7 +38,12 @@ FAKE = {
                    "open(os.environ['FAKE_PIDFILE'], 'w').write(str(os.getpid()))\ntime.sleep(600)\n"),
     'crash': "import sys\nsys.stdin.read()\nraise RuntimeError('boom-traceback-marker')\n",
     'badjson': "import sys\nsys.stdin.read()\nprint('not json {')\n",
+    # a broken guard that echoes its input as invalid JSON: ConvertFrom-Json's message would carry the payload
+    'echo_badjson': "import sys\nd = sys.stdin.read()\nprint('{\"partial\": ' + d)\n",
+    'badjson_70k': "import sys\nsys.stdin.read()\nprint('{' + 'x' * 70000)\n",
 }
+PAYLOAD_MARKER = b'PAYLOAD-SECRET-7f3a'
+MARKED_PAYLOAD = b'{"tool_name":"Bash","tool_input":{"command":"rm ' + PAYLOAD_MARKER + b'"}}'
 
 
 def wrapper_text():
@@ -149,14 +154,16 @@ class WrapperCases(unittest.TestCase):
         wall, rc, out, _ = self.harness('slow_start', {'FAKE_DELAY': '10'}).run()
         self.assertEqual(0, rc)
         self.assertIn('(stdin: ', deny_reason(out))
-        self.assertLess(wall, DEADLINE + SLACK)
+        self.assertLess(wall, DEADLINE)
 
     def test_6_hung_guard_denies_naming_exit_and_is_killed(self):
         h = self.harness('never_exit')
         wall, rc, out, _ = h.run()
         self.assertEqual(0, rc)
         self.assertIn('(exit: ', deny_reason(out))
-        self.assertLess(wall, DEADLINE + SLACK)
+        # ABSOLUTE bound, measured from before powershell.exe is spawned and including the kill: the host's 30 s timer
+        # also starts at spawn and fails OPEN, so no slack is allowed here
+        self.assertLess(wall, DEADLINE)
         self.assertTrue(h.pidfile.exists(), 'fake guard never started')
         self.assertFalse(h.orphan_killed, 'the wrapper must kill a child that outlives the deadline')
         self.assertFalse(pid_alive(int(h.pidfile.read_text())))
@@ -180,9 +187,16 @@ class WrapperCases(unittest.TestCase):
         self.assertIn('(start: ', deny_reason(out))
 
     def test_payload_is_never_echoed_in_a_deny(self):
-        marker = b'PAYLOAD-SECRET-7f3a'
-        _, _, out, _ = self.harness('crash').run(b'{"tool_name":"Bash","tool_input":{"command":"' + marker + b'"}}')
-        self.assertNotIn(marker.decode(), out)
+        """Every deny path that could carry the payload: a crash (stderr) and a guard that echoes stdin as bad JSON
+        (ConvertFrom-Json's message embeds its whole input). The reason also stays bounded for a huge bad decision."""
+        for fake in ('crash', 'echo_badjson'):
+            with self.subTest(fake=fake):
+                _, _, out, _ = self.harness(fake).run(MARKED_PAYLOAD)
+                self.assertNotIn(PAYLOAD_MARKER.decode(), out)
+                self.assertIn('permissionDecision":"deny', out)
+        _, _, out, _ = self.harness('badjson_70k').run()
+        self.assertIn('(output-json: ', deny_reason(out))
+        self.assertLess(len(out), 1200, 'a malformed decision must not be copied into the reason')
 
 
 def mutate(text, old, new):
@@ -230,6 +244,23 @@ class WrapperMutationTwins(unittest.TestCase):
         _, _, out, _ = h.run()
         self.assertIn('(exit: ', deny_reason(out))
         self.assertTrue(h.orphan_killed, 'mutant survived: the child died without Kill()')
+
+    def test_forwarding_the_json_exception_message_leaks_the_payload(self):
+        m = mutate(self.template, "        $message = 'guard output is not JSON (' + $_.Exception.GetType().Name + ', ' + \"$result\".Length + ' chars)'\n", "")
+        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'echo_badjson', payload=MARKED_PAYLOAD)
+        self.assertIn(PAYLOAD_MARKER.decode(), out, 'mutant survived: the payload did not leak, so the fixed message is not what hides it')
+
+    def test_anchoring_the_deadline_at_wrapper_time_breaks_case_6(self):
+        """The budget must count from process START (the host's timer does). Anchored at 'now' plus the same 24 s, a
+        hung guard finishes AFTER 24 s measured from spawn: the twin must see case 6's absolute bound go red."""
+        m = mutate(self.template, "[System.Diagnostics.Process]::GetCurrentProcess().StartTime.ToUniversalTime().AddSeconds(24)",
+                   "[DateTime]::UtcNow.AddSeconds(24)")
+        m = mutate(m, "$childStop = $hardStop.AddSeconds(-3)", "$childStop = $hardStop")
+        h = Harness(render_wrapper.render(m, sys.executable), 'never_exit')
+        self.addCleanup(h.close)
+        wall, _, out, _ = h.run()
+        self.assertIn('(exit: ', deny_reason(out))
+        self.assertGreaterEqual(wall, DEADLINE, 'mutant survived: without the start-time anchor the wall still fit the budget')
 
     def test_dropping_json_validation_breaks_case_8(self):
         m = mutate(self.template, '        $null = "$result" | ConvertFrom-Json -ErrorAction Stop\n', "")

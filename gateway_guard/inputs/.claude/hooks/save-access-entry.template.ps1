@@ -10,11 +10,14 @@ try {
     $inputJson = [Console]::In.ReadToEnd()
     $guardScript = Join-Path $PSScriptRoot 'protect-save-access.py'
     if ($guardScript.Contains('"')) { throw 'Invalid guard script path.' }
-    # One deadline for every stage: 24 s, inside both hosts' 30 s hook timeout. A host timeout fails OPEN
-    # (measured), so the wrapper must always answer first.
-    $deadline = [DateTime]::UtcNow.AddSeconds(24)
+    # One budget for everything: 24 s counted from THIS PROCESS's start (the host's 30 s timer started when it spawned
+    # powershell.exe, so PowerShell's own startup must count). A host timeout fails OPEN (measured), so the wrapper
+    # must always answer first. The last 3 s are reserved for the cleanup that follows a timeout (Kill + 2 s wait,
+    # 0.5 s stderr wait, JSON); the child may use the rest.
+    $hardStop = [System.Diagnostics.Process]::GetCurrentProcess().StartTime.ToUniversalTime().AddSeconds(24)
+    $childStop = $hardStop.AddSeconds(-3)
     function Remaining {
-        $ms = [int][Math]::Floor(($deadline - [DateTime]::UtcNow).TotalMilliseconds)
+        $ms = [int][Math]::Floor(($childStop - [DateTime]::UtcNow).TotalMilliseconds)
         if ($ms -lt 1) { 1 } else { $ms }
     }
     $start = New-Object System.Diagnostics.ProcessStartInfo
@@ -60,6 +63,12 @@ try {
 } catch {
     $message = $_.Exception.Message
     if ($_.Exception -is [System.AggregateException] -and $null -ne $_.Exception.InnerException) { $message = $_.Exception.InnerException.Message }
+    if ($stage -eq 'output-json') {
+        # ConvertFrom-Json's message embeds the WHOLE input, which may carry the hook payload (the user's command
+        # line) when a broken guard echoes it. Never forward it: name the type and the length only.
+        $message = 'guard output is not JSON (' + $_.Exception.GetType().Name + ', ' + "$result".Length + ' chars)'
+    }
+    if ($message.Length -gt 300) { $message = $message.Substring(0, 300) }
     try { if ($null -ne $errTask -and $errTask.Wait(500)) { $childErr = $errTask.Result } } catch { }
     $reason = 'SAVE ACCESS BLOCKED: save guard wrapper failure (' + $stage + ': ' + $message + '). Fail-closed; retry once the machine is responsive, and if it recurs repair the hook, do not bypass it.'
     if ($childErr) { $reason += ' stderr: ' + $childErr.Substring(0, [Math]::Min(300, $childErr.Length)) }

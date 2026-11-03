@@ -12,8 +12,13 @@ Two hook files that had NO CI until now join the gate. Neither changes a guard d
   so a deny under machine load reads as load, not as a broken hook (2026-11-02: two such denies, 4.9 s and 7.6 s wall,
   while the machine had under 1 GiB RAM free); one 24 s deadline with an 8 s stdin handoff, inside both hosts' 30 s
   hook timeout, which fails OPEN. `test_save_access_entry.py`: nine twin cases against fake guards, four mutation twins
-  (each names the case it must turn red), render contract. Windows runner only; `qualify.py` fails the Windows job if
-  fewer than nine wrapper cases ran, and the Linux job records them as skipped.
+  (each names the case it must turn red), render contract. The PowerShell cases run on the Windows runner only;
+  `qualify.py` fails the Windows job if fewer than nine wrapper HARNESS RUNS happened (`wrapper_cases_run` counts
+  wrapper invocations, not test methods), and the Linux job prints a SKIP line, runs the portable `RenderContract`, and
+  records `wrapper_cases_run: 0`. The 24 s budget is counted from the wrapper process's own start time with the last
+  3 s reserved for post-timeout cleanup, so the hard ceiling including Kill stays under the hosts' 30 s; the
+  `output-json` deny names only the exception type and output length, never the output (ConvertFrom-Json's message
+  embeds its whole input, which could be the hook payload).
 - `save-sentinel.py` (PostToolUse): `os.replace` and the state read retry on `PermissionError` (another session's
   sentinel holding the shared state file); the `.tmp-<pid>` never outlives the call. Before, the write raised and
   abandoned a 2.5 MB temp file, and the read fell to an empty state, forgetting the previous look, so a save changed in
