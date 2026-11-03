@@ -223,6 +223,39 @@ class PinTests(unittest.TestCase):
 def canonical(path): return str(Path(str(path).replace('\\', '/')).resolve()).replace('\\', '/').casefold()
 
 
+HOOKS = INPUTS/'.claude/hooks'
+
+
+def wrapper_suite():
+    """The PowerShell wrapper (save-access-entry.ps1) as its template, rendered with THIS interpreter: nine twin cases
+    against fake guards plus four mutation twins. Windows PowerShell only. Returns (suite, module) so the caller can
+    read module.CASES_RUN afterwards: on Windows zero cases run is a failure, not a pass."""
+    module = load(HOOKS/'test_save_access_entry.py', 'captured_wrapper_tests')
+    suite = unittest.TestSuite()
+    for name in ('RenderContract', 'WrapperCases', 'WrapperMutationTwins'):
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(getattr(module, name)))
+    return suite, module
+
+
+def sentinel_suite():
+    """PostToolUse save sentinel: the packet copy beside its tests (SENTINEL_SCRIPT unset = the file beside the test)."""
+    os.environ.pop('SENTINEL_SCRIPT', None)
+    module = load(HOOKS/'test_save_sentinel.py', 'captured_sentinel_tests')
+    suite = unittest.TestSuite()
+    for name in ('Sentinel', 'StateFileRace'):
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(getattr(module, name)))
+    return suite
+
+
+def sentinel_twins():
+    """Each twin must be killed by its named test; exit 0 only when all are. Runs on temp copies, never on the packet."""
+    import subprocess
+    r = subprocess.run([sys.executable, '-B', str(HOOKS/'sentinel_mutants.py'), str(HOOKS/'save-sentinel.py'),
+                        str(HOOKS/'test_save_sentinel.py')], capture_output=True, text=True)
+    print(r.stdout, end=''); print(r.stderr, end='', file=sys.stderr)
+    return r.returncode == 0
+
+
 def main():
     manifest = json.loads((HERE/'payload-manifest.json').read_bytes())
     for row in manifest['files']:
@@ -280,15 +313,26 @@ def main():
     sys.path.insert(0, str(BASE))
     adapter = load(BASE/'test_reference_adapter.py', 'captured_reference_adapter_tests')
     suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(adapter.ReferenceAdapterTests))
+    # 2026-11-03 packet: the wrapper and the sentinel join the gate (hook code with no CI until now).
+    wrapper_tests, wrapper_module = wrapper_suite()
+    if windows_policy:
+        suite.addTests(wrapper_tests)
+    sentinel_tests = sentinel_suite()
+    suite.addTests(sentinel_tests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
+    wrapper_cases = wrapper_module.CASES_RUN
+    wrapper_ok = (wrapper_cases >= 9) if windows_policy else True
+    twins_ok = sentinel_twins()
     unchanged = all(sha(HERE/row['path'])==row['sha256'] for row in manifest['files'])
     print(json.dumps(dict(tests=result.testsRun, failures=len(result.failures), errors=len(result.errors),
         skipped=len(result.skipped), exact_packet_unchanged=unchanged,
         scope='windows_full_policy_and_portable' if windows_policy else 'portable_policy_adapter_and_packet_pins',
         windows_only_fixture_methods_excluded=excluded, full_windows_policy_exercised=windows_policy,
+        wrapper_cases_run=wrapper_cases, wrapper_cases_required=windows_policy, wrapper_cases_ok=wrapper_ok,
+        sentinel_tests=sentinel_tests.countTestCases(), sentinel_twins_all_killed=twins_ok,
         missing_native_inputs_simulated=len(simulated), native_acceptance=False,
         actual_host_hook_acceptance=False, game_calls=0, provider_calls=0)))
-    return 0 if result.wasSuccessful() and unchanged else 1
+    return 0 if result.wasSuccessful() and unchanged and wrapper_ok and twins_ok else 1
 
 
 if __name__ == '__main__': raise SystemExit(main())

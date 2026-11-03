@@ -1,6 +1,28 @@
 # Private project-local gateway runner qualification
 
-## Current packet: 2026-11-01 classifier repair (supersedes the pins-only scope described below)
+## Current packet: 2026-11-03 wrapper hardening + sentinel race (additive; the guard itself is unchanged here)
+
+Two hook files that had NO CI until now join the gate. Neither changes a guard decision.
+
+- `save-access-entry.template.ps1` is the PowerShell wrapper that hosts register, with the pinned interpreter path
+  replaced by `__GUARD_PYTHON__` (`render_wrapper.py` renders it; the deployed file is the template rendered with the
+  private absolute pin, so the pin never enters this repo). Fixes: the child's stdout is drained asynchronously (a
+  decision above the ~4 KB pipe buffer used to deadlock the child into a 20 s timeout and a generic deny); every
+  failure path names its stage (`start`, `stdin`, `exit`, `exitcode`, `output-json`) and appends the child's stderr,
+  so a deny under machine load reads as load, not as a broken hook (2026-11-02: two such denies, 4.9 s and 7.6 s wall,
+  while the machine had under 1 GiB RAM free); one 24 s deadline with an 8 s stdin handoff, inside both hosts' 30 s
+  hook timeout, which fails OPEN. `test_save_access_entry.py`: nine twin cases against fake guards, four mutation twins
+  (each names the case it must turn red), render contract. Windows runner only; `qualify.py` fails the Windows job if
+  fewer than nine wrapper cases ran, and the Linux job records them as skipped.
+- `save-sentinel.py` (PostToolUse): `os.replace` and the state read retry on `PermissionError` (another session's
+  sentinel holding the shared state file); the `.tmp-<pid>` never outlives the call. Before, the write raised and
+  abandoned a 2.5 MB temp file, and the read fell to an empty state, forgetting the previous look, so a save changed in
+  that window went unreported. `test_save_sentinel.StateFileRace` (3 tests, both runners) and `sentinel_mutants.py`
+  (3 twins on temp copies; the run fails unless all are killed).
+
+`PinTests`, `DECLARED_CHANGES`, `baseline-guard.py` and the guard inputs are exactly the 2026-11-02 packet's.
+
+## Previous packet: 2026-11-01 classifier repair (supersedes the pins-only scope described below)
 
 The candidate CHANGES ALGORITHMS, unlike the earlier pins-only packets. It repairs the runtime save/load rule after the
 Codex gateway session's read-only audit (42 frozen cases: 13 false allows, 6 false refusals). Requests are now judged
