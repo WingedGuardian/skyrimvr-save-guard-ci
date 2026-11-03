@@ -136,16 +136,17 @@ class Harness:
         self.dir.cleanup()
 
 
-def run_in_utf8_console(text, fake, payload):
-    """Run the wrapper under code page 65001 in a hidden NEW console, so the test runner's own console keeps its
-    code page. Handles cannot be inherited into a new console reliably, so the batch file redirects the wrapper's
-    stdin/stdout to files; the deny (or decision) comes back from the output file."""
+def run_in_utf8_console(text, fake, payload, codepage=65001):
+    """Run the wrapper under a chosen code page in a hidden NEW console, so the test runner's own console keeps its
+    code page and the result does not depend on the machine. Handles cannot be inherited into a new console reliably,
+    so the batch file redirects the wrapper's stdin/stdout to files; the deny (or decision) comes back from the output
+    file."""
     d = Path(tempfile.mkdtemp())
     (d / 'save-access-entry.ps1').write_text(text, encoding='utf-8', newline='\n')
     (d / 'protect-save-access.py').write_text(FAKE[fake], encoding='utf-8')
     (d / 'payload.json').write_bytes(payload)
     bat = d / 'run.cmd'
-    bat.write_text('@echo off\r\nchcp 65001 >nul\r\npowershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'
+    bat.write_text('@echo off\r\nchcp ' + str(codepage) + ' >nul\r\npowershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'
                    + str(d / 'save-access-entry.ps1') + '" < "' + str(d / 'payload.json') + '" > "' + str(d / 'out.txt') + '" 2>&1\r\n',
                    encoding='ascii')
     si = subprocess.STARTUPINFO()
@@ -255,6 +256,11 @@ class WrapperCases(unittest.TestCase):
 
     def test_11b_byte_identical_on_a_utf8_console_too(self):
         out = run_in_utf8_console(self.text, 'raw_dump', NON_ASCII_PAYLOAD)
+        self.assertEqual(NON_ASCII_PAYLOAD.hex(), deny_reason(out))
+
+    def test_11c_byte_identical_on_a_legacy_console(self):
+        """Code page 437, the install's console: the one where decoding through the console garbles."""
+        out = run_in_utf8_console(self.text, 'raw_dump', NON_ASCII_PAYLOAD, codepage=437)
         self.assertEqual(NON_ASCII_PAYLOAD.hex(), deny_reason(out))
 
     def test_12_guard_decodes_non_ascii_correctly(self):
@@ -370,11 +376,12 @@ class WrapperMutationTwins(unittest.TestCase):
         self.assertIn('(exitcode: ', reason, 'mutant survived: without the InputEncoding line the guard still parsed its stdin')
         self.assertIn('BOM', reason)
 
-    def test_reading_stdin_as_text_breaks_case_11(self):
-        """The regression that passed five review rounds and CI: decode with the console, re-encode as UTF-8."""
+    def test_reading_stdin_as_text_breaks_case_11c(self):
+        """The regression that passed five review rounds and CI: decode with the console, re-encode as UTF-8. Pinned to
+        code page 437, because on a UTF-8 console (the CI runner) the text round trip happens to be lossless."""
         m = mutate(self.template, "    $inputStream.CopyTo($buffer)\n    $payloadBytes = $buffer.ToArray()\n",
                    "    $payloadBytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes([Console]::In.ReadToEnd())\n")
-        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'raw_dump', payload=NON_ASCII_PAYLOAD)
+        out = run_in_utf8_console(render_wrapper.render(m, sys.executable), 'raw_dump', NON_ASCII_PAYLOAD, codepage=437)
         self.assertNotEqual(NON_ASCII_PAYLOAD.hex(), deny_reason(out), 'mutant survived: text mode kept the bytes intact')
 
     def test_dropping_utf8_mode_breaks_case_12(self):
