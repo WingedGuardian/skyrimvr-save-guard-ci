@@ -2,7 +2,7 @@
   "files": [
     {
       "path": "inputs/.claude/hooks/test_protect_save_access.py",
-      "sha256": "efe432c1afdf5caeec175d89ac5d51be299fce0f651aa2e68148fde91d67f48e"
+      "sha256": "0a8b89bde3437a436e533dddbb99abcfba8ae4471a9fe5c503e0cce205ee47f7"
     },
     {
       "path": "inputs/.claude/hooks/restore-save-backup.py",
@@ -46,11 +46,11 @@
     },
     {
       "path": "inputs/.claude/hooks/protect-save-access.py",
-      "sha256": "70d76e6bba509f0c3aa3c0ba5da7a3c91e5ae9322908b34dc0cd17cce35febc3"
+      "sha256": "fe1005c4bab628ec5c35f93e9d180a635bf12a6cd99187284fde2b56564a7ed4"
     },
     {
       "path": "baseline-guard.py",
-      "sha256": "4c11cc98ffa28f4e01e1e5f52b43c3739e515e92046726a01f6a59ffb1202293"
+      "sha256": "70d76e6bba509f0c3aa3c0ba5da7a3c91e5ae9322908b34dc0cd17cce35febc3"
     },
     {
       "path": "inputs/_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/follower-context-2026-10-31/rewrite-audit-2026-11-01/cases.json",
@@ -62,10 +62,10 @@
     },
     {
       "path": "candidate.patch",
-      "sha256": "270c59ac60cf25f7c2e1ea672a510eb2eb9470db8959aa232523fdc7787ec054"
+      "sha256": "8e9c600c27539f80873b8a6d9f03220b473bcb36584e03ce16992941a5d12f1c"
     }
   ],
-  "scope": "2026-11-01 save-guard classifier repair: structural runtime save/load requests, helper names no longer counted (user ruling), source handed to an interpreter judged as a run. Pin tables unchanged.",
+  "scope": "2026-11-02 save guard: each command is parsed for which tool it runs, from which folder, and what it writes. Pin tables unchanged.",
   "active_guard_changed": false,
   "game_payloads_copied": false,
   "missing_native_inputs": "hash-only; runtime preflight still mandatory"

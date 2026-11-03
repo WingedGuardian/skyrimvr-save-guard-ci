@@ -40,18 +40,76 @@ def tables(path):
     return values, other
 
 
-# This packet (2026-11-01) changes classifier ALGORITHMS, so unlike the earlier pins-only packets the guard body is
-# expected to differ from the baseline (the deployed 4c11cc98... guard). What may differ is declared here, by name,
-# and enforced in both directions: nothing outside the list changed, and everything on the list really did.
+# This packet (2026-11-02) adds a per-command pass, file_tool_change, so the guard body differs from the baseline (the deployed
+# 70d76e6b guard). What may differ is declared here, by name, and enforced in both directions.
 DECLARED_CHANGES = {
-    'HELPER', 'RUNTIME_CALL', 'helper_execution_text',           # removed (user ruling 2026-11-01: names, not code)
-    'RUNTIME_PAIR', 'RUNTIME_QUERY', 'RUNTIME_FUNCTIONS', 'RUNTIME_ACTIONS', 'RUNTIME_CONSOLE', 'RUNTIME_CONTEXT',
-    '_TOOLS', 'RUNTIME_TOOL', 'RUNTIME_TOKEN', 'runtime_request',  # added: the structural runtime classifier
-    'RUNTIME_TOOL_KEYS', 'RUNTIME_CALL_TOOL', 'RUNTIME_FILE_BODY', 'RUNTIME_SENDER', 'TEXT_TOOLS', 'only_text_tools', 'TEXT_TOOL_EXECUTES',
-    'TEXT_TOOL_SUBCOMMANDS',
-    'SHELL_TOOLS',                                                 # added: which tools carry a shell command line
-    'invoked_scripts',                                             # changed: source handed to an interpreter
-    'decide',                                                      # changed: the three call sites
+    'ARCHIVERS',
+    'BLOCK_WORDS',
+    'CHDIR_BACK',
+    'CHDIR_WORDS',
+    'CODE_CHANGES_FILES',
+    'COMPRESSORS',
+    'COMPRESS_READS',
+    'DELETE_TOOLS',
+    'DOWNLOADERS',
+    'EVAL_WORDS',
+    'GIT_WRITES',
+    'INLINE_CODE',
+    'PAREN_METHOD',
+    'PIPE_ACTIONS',
+    'PIPE_FILTERS',
+    'PIPE_LISTERS',
+    'PIPE_METHOD',
+    'PS_CARRIERS',
+    'PS_WRITE_ALIASES',
+    'QUOTED_MARK',
+    'RCLONE_READS',
+    'RELATIVE_DELETE',
+    'RELATIVE_WRITE',
+    'RSYNC_VALUE_FLAGS',
+    'RSYNC_WRITTEN_VALUES',
+    'SCP_VALUE_FLAGS',
+    'SHELL_CARRIERS',
+    'START_WORDS',
+    'TAR_VALUE_LETTERS',
+    'TRANSFER_ALIASES',
+    'WRAPPER_VALUE_FLAGS',
+    'WRAPPER_WORDS',
+    '_FILE_PROGRAMS',
+    '_NODE_FS',
+    '_NODE_WRITES',
+    '_REDIRECT',
+    '_REMOTE',
+    '_archiver_writes',
+    '_braced',
+    '_comma_lists_as_one_word',
+    '_command_of',
+    '_download_target',
+    '_heredoc_body',
+    '_inner_command',
+    '_is_location',
+    '_joined',
+    '_judge_written',
+    '_masked',
+    '_piped_change',
+    '_powershell_target',
+    '_rclone_writes',
+    '_resolved',
+    '_rsync_scp_writes',
+    '_shell_words',
+    '_split_on_ampersand',
+    '_substitutions',
+    '_tar_writes',
+    '_transfer_alias',
+    '_without_heredoc_bodies',
+    '_without_redirects',
+    '_written_paths',
+    'changes_files',
+    'decide',
+    'file_tool_change',
+    'operation',
+    'outward_copy',
+    'transfer_form',
 }
 
 
@@ -72,7 +130,7 @@ def top_level(path):
     return out
 
 
-BASELINE_SHA256 = '4c11cc98ffa28f4e01e1e5f52b43c3739e515e92046726a01f6a59ffb1202293'  # deployed 2026-11-01 02:10Z
+BASELINE_SHA256 = '70d76e6bba509f0c3aa3c0ba5da7a3c91e5ae9322908b34dc0cd17cce35febc3'  # deployed, the runtime classifier repair
 
 
 def body(source, name):
@@ -91,39 +149,26 @@ class PinTests(unittest.TestCase):
     def test_the_baseline_is_the_deployed_guard(self):
         self.assertEqual(BASELINE_SHA256, sha(HERE/'baseline-guard.py'))
 
-    def test_decide_changes_only_the_runtime_block_and_the_helper_name_rule(self):
+    def test_decide_gains_only_the_new_pass(self):
         """Any other edit inside decide() -- the canary, encoded commands, folder rules, approvals -- fails here."""
         base = (HERE/'baseline-guard.py').read_text(encoding='utf-8')
-        # the one declared in-place rename (inside the invoked-script loop)
-        base = base.replace('RUNTIME_CALL.search(code)', 'runtime_request(code, need_target=False)')
+        # the two declared in-place edits
+        one = 'if MUTATE.search(code) and (mentions_save_location(code)'
+        two = 'if FOLDER.search(acting) and MUTATE.search(acting):'
+        self.assertEqual(1, base.count(one)); self.assertEqual(1, base.count(two))
+        base = base.replace(one, 'if changes_files(code) and (mentions_save_location(code)')
+        base = base.replace(two, "if (FOLDER.search(acting) and changes_files(acting)) or (form and _named_folders(acting, cwd, lambda p, wild: in_save_location(p))):")
         got = changes(body(base, 'decide'), body(GUARD.read_text(encoding='utf-8'), 'decide'))
-        self.assertEqual(2, len(got), got)
-        (tag1, old1, new1), (tag2, old2, new2) = got
-        self.assertEqual('replace', tag1)
-        self.assertEqual(2, len(old1)); self.assertTrue(old1[0].startswith('runtime_save = '))
-        self.assertTrue(old1[1].startswith('if runtime_save and '))
-        self.assertEqual(2, len(new1)); self.assertTrue(new1[0].startswith('structured = '))
-        self.assertTrue(new1[1].startswith('if runtime_request(text) or '))
-        old_if = ast.parse(old1[1]).body[0]; new_if = ast.parse(new1[1]).body[0]
-        self.assertEqual([ast.dump(s) for s in old_if.body], [ast.dump(s) for s in new_if.body])  # same deny, same reason
-        self.assertEqual(('delete', []), (tag2, new2))
-        self.assertEqual(1, len(old2)); self.assertTrue(old2[0].startswith('if HELPER.search('))
+        self.assertEqual(1, len(got), got)
+        tag, old, new = got[0]
+        self.assertEqual(('insert', []), (tag, old))
+        self.assertEqual(1, len(new))
+        self.assertTrue(new[0].startswith("if isinstance(args, str) or ((not tool.startswith('mcp__')) and"), new[0])
+        self.assertIn('written = file_tool_change(text, cwd, tool, base)', new[0])
 
-    def test_invoked_scripts_only_gains_forms(self):
+    def test_invoked_scripts_is_untouched(self):
         base, cand = (HERE/'baseline-guard.py').read_text(encoding='utf-8'), GUARD.read_text(encoding='utf-8')
-        got = changes(body(base, 'invoked_scripts'), body(cand, 'invoked_scripts'))
-        self.assertTrue(got and all(tag == 'insert' for tag, _, _ in got), got)
-        # what is inserted may only ADD forms: `invoked = []` before the return would pass a shape-only check and
-        # remove every script inspection (second review 2026-11-01)
-        # The one inserted `if` is pinned exactly: a prefix check let `if _depth < 1: invoked = []` through (third review).
-        depth_block = ("if _depth < 1:\n    for token in list(invoked):\n        inner = next((v for v in token if v), '')\n"
-                       "        if re.search('\\\\s', inner):\n            invoked += invoked_scripts(inner, _depth + 1)")
-        for _, _, added in got:
-            for statement in added:
-                if statement.startswith('if '):
-                    self.assertEqual(depth_block, statement)
-                else:
-                    self.assertTrue(statement.startswith(('invoked += ', 'source = ')), statement)
+        self.assertEqual(body(base, 'invoked_scripts')[0], body(cand, 'invoked_scripts')[0])
 
     def test_pin_tables_are_exactly_the_deployed_ones(self):
         old, _ = tables(HERE/'baseline-guard.py'); new, _ = tables(GUARD)
@@ -214,7 +259,8 @@ def main():
     policy.load = test_load
     selected = ('AlwaysDenied','BackupThenAllow','BackupFailureDenies','NeedsApproval',
                 'RecursiveDeletes','Approvals','FreeOperations','RestoreHelper','HelperBasenames',
-                'SaveFolders','LockSwitch','GatewayFreezeReadOnly','GatewayLifecycleNonSave','RuntimeRequests')
+                'SaveFolders','LockSwitch','GatewayFreezeReadOnly','GatewayLifecycleNonSave','RuntimeRequests',
+                'FileToolsThatChangeSaves')
     suite = unittest.TestSuite()
     windows_policy = os.name == 'nt' and '--portable-only' not in sys.argv[1:]
     windows_only = {('FreeOperations', 'test_free'),

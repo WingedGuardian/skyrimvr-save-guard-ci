@@ -122,6 +122,19 @@ FOLDER = re.compile(r'(?:[/\\](?:__mo_)?saves|(?<![\w-])(?-i:Saves))(?=[/\\\s\"\
 MUTATE = re.compile(r'\b(?:move-item|copy-item|remove-item|rename-item|set-content|add-content|clear-content|out-file|mv|cp|rm|del|erase|robocopy|xcopy|touch|tee|truncate|dd|set-itemproperty|rmdir|rd|expand-archive|unzip)\b|shutil\.(?:move|copy\w*|rmtree)|\.(?:unlink|rename|replace|write_\w+|utime|open|delete|moveto|copyto)\s*\(|::(?:write|create|append|delete|move|copy|replace)\w*', re.I)
 READ = re.compile(r'get-content|get-item\b|get-filehash|read_bytes|read_text|\.stat\s*\(|\bopen\s*\(|\b(?:cat|type|sha256sum|stat)\s', re.I)
 EXTENSION = re.compile(r'\.(?:ess|skse)(?![\w])', re.I)
+_NODE_FS = r'\bfs(?:\.promises)?\.'
+_NODE_WRITES = r'(?:rename|unlink|rm|rmdir|copyfile|cp|writefile|appendfile|truncate|symlink|link|createwritestream|opensync|utimes)'
+_FILE_PROGRAMS = r'(?:rsync|rclone|scp|shred|sdelete\d*|ln|mklink|gzip|gunzip|bzip2|xz|7z|7za|tar|bsdtar)'
+# In code, not in a command line: a command is parsed by file_tool_change. A quoted program name is a subprocess call, a line
+# that starts with one is a shell script, and the others are API names.
+CODE_CHANGES_FILES = re.compile(r'[\'"]' + _FILE_PROGRAMS + r'[\'"]\s*,|(?m:^[ \t]*(?:sudo\s+)?' + _FILE_PROGRAMS + r'\s+(?!=))'
+                                r'|\bos\.(?:sym)?link\s*\(|\bos\.remove\s*\(|\.(?:hardlink_to|symlink_to)\s*\(|\bunpack_archive\s*\('
+                                r'|\.extractall\s*\(|' + _NODE_FS + _NODE_WRITES + r'|\b' + _NODE_WRITES + r'sync\s*\('
+                                r'|\|\s*(?:%|foreach(?:-object)?)\s+(?:-membername\s+)?(?:delete|moveto|encrypt)\b|\|\s*(?:ri|remove-item)\b', re.I)
+
+
+def changes_files(code):
+    return bool(MUTATE.search(code) or CODE_CHANGES_FILES.search(code))
 # A save LOCATION spelled in code: a Saves path component, the quoted component 'Saves' (os.path.join(..., 'Saves')),
 # or the INI key that moves the folder. Not the bare word: "Saves your session stats" in a help string made every
 # run of a 37k-line plugin script a counted save change (false positive, user 2026-10-30).
@@ -517,17 +530,24 @@ def operation(text, tool):
     text = tool + '\n' + text
     for label, pattern in [
             ('delete', r'remove-item|\bunlink\b|\brmtree\b|\brm\b|\bdel\b|\berase\b|\brmdir\b|\brd\b|os\.remove'
-                       r'|send2trash|deletefile|::delete|\.delete\s*\(|\s-delete\b'),
+                       r'|send2trash|deletefile|::delete|\.delete\s*\(|\s-delete\b'
+                       r'|' + _NODE_FS + r'(?:unlink|rm|rmdir)\b|\b(?:unlink|rm|rmdir)sync\s*\('),
             ('move', r'move-item|shutil\.move|\bmv\b|::move|movefile|\.moveto\s*\('),
-            ('rename', r'rename-item|\.rename\s*\(|os\.replace|\.replace\s*\(\s*(?![\'"])'),
-            ('copy', r'copy-item|copy_?file|shutil\.copy|\bcp\b|robocopy|xcopy|::copy|\.copyto\s*\('),
+            ('rename', r'rename-item|\.rename\s*\(|os\.replace|\.replace\s*\(\s*(?![\'"])'
+                       r'|' + _NODE_FS + r'rename\b|\brenamesync\s*\('),
+            ('copy', r'copy-item|copy_?file|shutil\.copy|\bcp\b|robocopy|xcopy|::copy|\.copyto\s*\('
+                     r'|' + _NODE_FS + r'cp\b|\bcpsync\s*\('),
             ('write', r'set-content|add-content|clear-content|out-file|new-item\b|set-itemproperty|write_bytes|write_text'
                       r'|\.write\s*\(|::(?:write|create|append|open|replace)|\btee\b|\btruncate\b|\btouch\b|\bdd\b'
                       r'|\bsed\s+(?:-\w+\s+)*-\w*i|\butime\b|--apply|\b(?:clean|set-global|set-var|reset-havok'
                       r'|cleanse-formlists|remove-created|verify-roundtrip)\b|expand-archive|\bunzip\b'
                       r'|\bopen\s*\([^)]*?,\s*(?:mode\s*=\s*)?[\'"][rbt]*[wax+]'
                       r'|\.open\s*\(\s*(?:mode\s*=\s*)?[\'"][rbt]*[wax+]'
-                      r'|>{1,2}\|?\s*(?:\'[^\']*\.(?:ess|skse)[^\']*\'|"[^"]*\.(?:ess|skse)[^"]*"|[^\s\'";|&]*\.(?:ess|skse)\b)'),
+                      r'|>{1,2}\|?\s*(?:\'[^\']*\.(?:ess|skse)[^\']*\'|"[^"]*\.(?:ess|skse)[^"]*"|[^\s\'";|&]*\.(?:ess|skse)\b)'
+                      r'|\bos\.(?:sym)?link\s*\(|\.(?:hardlink_to|symlink_to)\s*\(|\bunpack_archive\s*\(|\.extractall\s*\('
+                      r'|[\'"]' + _FILE_PROGRAMS + r'[\'"]\s*,'
+                      r'|' + _NODE_FS + r'(?:writefile|appendfile|truncate|symlink|link|createwritestream)\b'
+                      r'|\b(?:writefile|appendfile|truncate|symlink|link|open)sync\s*\('),
             ('hash', r'get-filehash|sha\d*sum|md5sum|hashlib|certutil')]:
         if re.search(pattern, text, re.I):
             return label
@@ -967,6 +987,17 @@ def stems(paths):
     return seen
 
 
+def _comma_lists_as_one_word(words):
+    """PowerShell's `a, b ,c` is one list of three, however it is spaced."""
+    out = []
+    for w in words:
+        if out and (out[-1].endswith(',') or w.startswith(',')):
+            out[-1] += w
+        else:
+            out.append(w)
+    return out
+
+
 def transfer_form(text, args):
     """Sources and destination of ONE plain copy/move/rename, or None. Sources may hold
     wildcards; anything else that is not a literal absolute path gives None."""
@@ -1000,10 +1031,11 @@ def transfer_form(text, args):
     if cmd in ('copy-item', 'cpi', 'copy', 'move-item', 'mi', 'move', 'rename-item', 'rni', 'ren'):
         sources, dest, i = [], None, 0
         dest_flags = ('-destination',) if not cmd.startswith(('rename', 'rni', 'ren')) else ('-newname',)
+        rest = _comma_lists_as_one_word(rest)
         while i < len(rest):
             w, low = rest[i], rest[i].lower()
             if low in ('-path', '-literalpath') and i + 1 < len(rest):
-                sources.append(rest[i + 1]); i += 2; continue
+                sources.extend(p for p in rest[i + 1].split(',') if p); i += 2; continue
             if low in dest_flags and i + 1 < len(rest):
                 if dest is not None:
                     return None
@@ -1015,7 +1047,7 @@ def transfer_form(text, args):
             if sources and dest is None:
                 dest = w
             else:
-                sources.append(w)
+                sources.extend(p for p in w.split(',') if p)
             i += 1
         if not sources or dest is None:
             return None
@@ -1538,6 +1570,697 @@ def lock_switch_violation(tool, text):
     return bool(MUTATE.search(acting) or operation(acting, tool) not in ('read', 'hash'))
 
 
+# ------------------------------------------------- what each command writes to (2026-11-02)
+# A peer's probe found rsync, tar, shred, ln, `gci | % Delete` and others changed saves with no backup, because
+# operation() called them reads; an independent review found `cd Saves && rm *` allowed too. A word search on the raw text
+# is the wrong tool for this: it refuses `rg 'a|ln b'` and misses /usr/bin/rsync. So each simple command is parsed: which
+# tool, in which folder (following cd), and which of its words it WRITES. Reading and copying out write nothing there.
+WRAPPER_WORDS = {'env', 'nohup', 'time', 'nice', 'ionice', 'command', 'exec', 'stdbuf', 'busybox', 'wsl', 'then', 'do', 'else',
+                 'if', 'while', 'until', '!', '{', '&', 'call', 'start', 'sudo', 'timeout'}
+WRAPPER_VALUE_FLAGS = {'sudo': {'-u', '-g', '-h', '-p', '-c', '-t', '-r'}, 'nice': {'-n'}, 'ionice': {'-c', '-n'},
+                       'env': {'-u', '-C', '-S'}, 'stdbuf': {'-i', '-o', '-e'}, 'wsl': {'-d', '-u', '-e'}, 'timeout': {'-k', '-s'}}
+SHELL_CARRIERS = {'bash', 'sh', 'zsh', 'dash', 'ksh'}
+PS_CARRIERS = {'pwsh', 'powershell'}
+CHDIR_WORDS = {'cd', 'pushd', 'chdir', 'set-location', 'sl', 'push-location'}
+CHDIR_BACK = {'popd', 'pop-location'}
+EVAL_WORDS = {'iex', 'invoke-expression', 'eval'}
+BLOCK_WORDS = {'try', 'catch', 'finally', 'function', 'measure-command', 'invoke-command', 'icm', 'start-job', 'sajb', 'foreach',
+               'for', 'while', 'if', 'else', 'elseif'}
+START_WORDS = {'start-process', 'saps'}
+PIPE_FILTERS = {'?', 'where', 'where-object', 'select', 'select-object', 'sort', 'sort-object', 'group', 'group-object'}
+INLINE_CODE = {'python': '-c', 'python3': '-c', 'py': '-c', 'node': '-e', 'perl': '-e', 'ruby': '-e'}
+DELETE_TOOLS = {'shred', 'sdelete', 'sdelete64', 'ri'}
+COMPRESSORS = {'gzip', 'gunzip', 'bzip2', 'bunzip2', 'xz', 'unxz', 'lzma', 'unlzma', 'zstd', 'unzstd'}
+COMPRESS_READS = {'-c', '-l', '-t', '--stdout', '--to-stdout', '--list', '--test', '-h', '--help', '-V', '--version'}
+PS_WRITE_ALIASES = {'sc', 'ac', 'clc', 'cli', 'si', 'ni', 'clear-item', 'set-item', 'tee-object'}
+TRANSFER_ALIASES = {'copy', 'cpi', 'move', 'mi', 'ren', 'rename', 'rni'}
+ARCHIVERS = {'7z', '7za', '7zr', '7zz', 'unrar', 'rar'}
+DOWNLOADERS = {'curl': ('-o', '--output'), 'wget': ('-O', '--output-document'), 'iwr': ('-outfile',),
+               'invoke-webrequest': ('-outfile',), 'irm': ('-outfile',), 'invoke-restmethod': ('-outfile',), 'sort': ('-o', '--output')}
+# Only under a cd into a save folder: the guard's later rules judge these on literal paths, but a relative one was never seen.
+RELATIVE_DELETE = {'rm', 'del', 'erase', 'rmdir', 'rd', 'remove-item', 'unlink'}
+RELATIVE_WRITE = {'touch', 'truncate', 'tee', 'set-content', 'add-content', 'clear-content', 'out-file', 'new-item'}
+GIT_WRITES = {'clean', 'checkout', 'restore', 'reset', 'switch', 'stash', 'apply', 'merge', 'rebase', 'pull', 'revert', 'cherry-pick'}
+RSYNC_VALUE_FLAGS = {'--exclude', '--include', '--exclude-from', '--include-from', '--files-from', '--link-dest', '--compare-dest',
+                     '--copy-dest', '--backup-dir', '--temp-dir', '-T', '--partial-dir', '--log-file', '--filter', '-f', '--rsh', '-e',
+                     '--chmod', '--chown', '--timeout', '--bwlimit', '--max-size', '--min-size', '--suffix', '--port', '--password-file',
+                     '--rsync-path', '--out-format', '--info', '--debug'}
+SCP_VALUE_FLAGS = {'-P', '-i', '-o', '-F', '-l', '-c', '-S', '-J', '-D'}
+RSYNC_WRITTEN_VALUES = {'--backup-dir', '--temp-dir', '-T', '--partial-dir', '--log-file'}
+RCLONE_READS = {'ls', 'lsf', 'lsd', 'lsl', 'lsjson', 'check', 'md5sum', 'sha1sum', 'hashsum', 'size', 'cat', 'tree', 'version',
+                'listremotes', 'config', 'about', 'help'}
+TAR_VALUE_LETTERS = 'fCXTbHLKNgV'
+PAREN_METHOD = re.compile(r'\)\s*\.(?:delete|moveto|encrypt|decrypt)\s*\(|\$\w+\.(?:delete|moveto|encrypt|decrypt)\s*\(', re.I)
+PIPE_METHOD = re.compile(r'^[\'"]?(delete|moveto|copyto|encrypt|decrypt)[\'"]?$', re.I)
+PIPE_LISTERS = {'get-childitem', 'gci', 'ls', 'dir', 'get-item', 'gi'}
+PIPE_ACTIONS = {'ri': 'delete', 'remove-item': 'delete', 'del': 'delete', 'rm': 'delete', 'mi': 'move', 'move-item': 'move',
+                'rni': 'rename', 'rename-item': 'rename', 'cpi': 'copy', 'copy-item': 'copy'}
+_REMOTE = re.compile(r'^(?:[^/\\:\s]{2,}):(?![/\\]{2})')
+
+
+def _shell_words(segment):
+    """Words with quotes removed, keeping `\\ ` and `\\"`: the real save path has a space, and `bash -c "x \\"a b\\""` is everyday.
+    Any other backslash is a Windows path separator."""
+    words, cur, started, quote, i = [], '', False, None, 0
+    quoted = False
+    while i < len(segment):
+        c = segment[i]
+        if c == '\\' and i + 1 < len(segment) and segment[i + 1] in ' "' and quote != "'":
+            cur += segment[i + 1]
+            started = True
+            i += 2
+            continue
+        if quote:
+            if c == quote:
+                quote = None
+            else:
+                cur += c
+        elif c in '"\'':
+            quote = c
+            quoted = quoted or not cur
+            started = True
+        elif c.isspace():
+            if started:
+                words.append(QUOTED_MARK + cur if quoted else cur)
+            cur, started, quoted = '', False, False
+        else:
+            cur += c
+            started = True
+        i += 1
+    if started:
+        words.append(QUOTED_MARK + cur if quoted else cur)
+    return words
+
+
+QUOTED_MARK = '\0'
+_REDIRECT = re.compile(r'^(?:\d*|&)(>>?\|?|<<?<?)(&?)(.*)$')
+
+
+def _without_redirects(words):
+    """(the command's own words, files it redirects output into). `2>&1` and a trailing `&` are not arguments."""
+    out, targets, i = [], [], 0
+    while i < len(words):
+        w = words[i]
+        i += 1
+        if w.startswith(QUOTED_MARK):
+            out.append(w[1:])
+            continue
+        if w == '&':
+            continue
+        m = _REDIRECT.match(w)
+        if not m:
+            out.append(w)
+            continue
+        value = m[3]
+        if not value and not m[2] and i < len(words):
+            value = words[i].lstrip(QUOTED_MARK)
+            i += 1
+        # A variable target is left to the later rules: `ls Saves > "$LOG"` is an everyday read.
+        if m[1].startswith('>') and not m[2] and value and '$' not in value and value.lower() not in ('/dev/null', 'nul'):
+            targets.append(value)
+    return out, targets
+
+
+def _split_on_ampersand(segment):
+    """split_segments keeps a lone `&`. In bash it starts a background job; in PowerShell it calls what follows."""
+    parts, cur, quote, i = [], '', None, 0
+    while i < len(segment):
+        c = segment[i]
+        if quote:
+            quote = None if c == quote else quote
+        elif c in '"\'':
+            quote = c
+        elif c == '&' and segment[i - 1:i] not in ('>', '<') and segment[i + 1:i + 2] != '>':
+            parts.append(cur)
+            cur, i = '', i + 1
+            continue
+        cur += c
+        i += 1
+    parts.append(cur)
+    return [x.strip() for x in parts if x.strip()]
+
+
+def _without_heredoc_bodies(text):
+    """Keep each heredoc's first line. Its body is data unless a shell reads it, which the driver handles separately."""
+    return re.sub(r"(<<-?\s*['\"]?(\w+)['\"]?[^\n]*)\n.*?(?:\n[ \t]*\2[ \t]*(?=\n|\)|$)|\Z)", r'\1', text, flags=re.S)
+
+
+def _masked(text):
+    """text with every quoted span blanked (same length), so structure can be searched without reading text."""
+    out, quote = [], None
+    for c in text:
+        if quote:
+            out.append(' ')
+            if c == quote:
+                quote = None
+        elif c in '"\'':
+            quote = c
+            out.append(' ')
+        else:
+            out.append(c)
+    return ''.join(out)
+
+
+def _substitutions(text):
+    """The commands in backticks and $(...), which run even inside double quotes. Single quotes hide them; an inner
+    single-quoted path stays part of the command."""
+    found, i, quote = [], 0, None
+    while i < len(text):
+        c = text[i]
+        if c == "'" and quote != '"':
+            quote = None if quote == "'" else "'"
+        elif quote == "'":
+            pass
+        elif c == '"':
+            quote = None if quote == '"' else '"'
+        elif c == '`' and (end := text.find('`', i + 1)) > i:
+            found.append(text[i + 1:end])
+            i = end
+        elif text.startswith('$(', i):
+            depth, j = 1, i + 2
+            while j < len(text) and depth:
+                depth += {'(': 1, ')': -1}.get(text[j], 0)
+                j += 1
+            found.append(text[i + 2:j - 1])
+            i = j - 1
+        i += 1
+    return found
+
+
+def _braced(segment):
+    """The code in a segment's outermost { }, which split_segments leaves in one piece."""
+    masked = _masked(segment)
+    a, b = masked.find('{'), masked.rfind('}')
+    return segment[a + 1:b] if 0 <= a < b else None
+
+
+def _heredoc_body(segment):
+    m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)(?:\n\s*\1\s*$|\Z)", segment, re.S)
+    return m[2] if m else None
+
+
+def _command_of(words):
+    """(tool name, its arguments) with wrappers, assignments, a path and .exe removed."""
+    words = list(words)
+    while words:
+        w = words[0]
+        if re.match(r'^[A-Za-z_]\w*=', w):
+            words.pop(0)
+            continue
+        if re.fullmatch(r'\$[\w:]+', w) and words[1:2] == ['=']:     # PowerShell: $r = rsync ...
+            del words[:2]
+            continue
+        base = re.split(r'[/\\]', w)[-1].lower()
+        base = re.sub(r'\.(?:exe|cmd|bat)$', '', base)
+        if base not in WRAPPER_WORDS:
+            return base, words[1:]
+        words.pop(0)
+        values = WRAPPER_VALUE_FLAGS.get(base, ())
+        while words and (words[0].startswith('-') or re.match(r'^[A-Za-z_]\w*=', words[0])):
+            flag = words.pop(0)
+            if flag in values and words:
+                words.pop(0)
+        if base == 'timeout' and words:
+            words.pop(0)                                   # the duration
+    return '', []
+
+
+def _joined(words):
+    """Words back into command text; each one that holds a space keeps its quotes."""
+    return words[0] if len(words) == 1 else ' '.join('"' + w + '"' if ' ' in w else w for w in words)
+
+
+def _inner_command(name, args):
+    """The command text a shell is told to run, or None. One quoted argument is the whole command; several are its words."""
+    if name in SHELL_CARRIERS:
+        for i, w in enumerate(args):
+            if re.fullmatch(r'-[a-zA-Z]*c[a-zA-Z]*', w):
+                return _joined(args[i + 1:])
+        return None
+    if name == 'cmd':
+        for i, w in enumerate(args):
+            if w.lower() in ('/c', '/k'):
+                return _joined(args[i + 1:])
+        return None
+    if name in PS_CARRIERS:
+        for i, w in enumerate(args):
+            if re.fullmatch(r'-c(?:ommand)?', w, re.I):
+                return _joined(args[i + 1:])
+    return None
+
+
+def _tar_writes(args):
+    """Paths tar writes, or None when it writes nothing. Case matters: -x extracts, -X names an exclude file."""
+    extract = writes_archive = removes = to_stdout = False
+    folders, archives, operands = [], [], []
+    i, first = 0, True
+    while i < len(args):
+        w = args[i]
+        i += 1
+        if w.startswith('--'):
+            flag, eq, value = w.partition('=')
+            if flag.startswith('--ext') or flag == '--get':
+                extract = True
+            elif flag in ('--create', '--append', '--update', '--delete', '--catenate', '--concatenate'):
+                writes_archive = True
+            elif flag.startswith('--rem'):
+                removes = True
+            elif flag.startswith('--to-std'):
+                to_stdout = True
+            elif flag.startswith(('--di', '--one')):
+                if not eq and i < len(args) and flag.startswith('--di'):
+                    value = args[i]
+                    i += 1
+                if value:
+                    folders.append(value)
+            elif flag.startswith('--file'):
+                if not eq and i < len(args):
+                    value = args[i]
+                    i += 1
+                archives.append(value)
+            first = False
+            continue
+        dashed = w.startswith('-') and len(w) > 1
+        if dashed or (first and re.fullmatch(r'[a-zA-Z]{1,8}', w)):
+            letters = w[1:] if dashed else w
+            for j, c in enumerate(letters):
+                if c == 'x':
+                    extract = True
+                elif c == 'O':
+                    to_stdout = True
+                elif c in 'cruA':
+                    writes_archive = True
+                if c in TAR_VALUE_LETTERS:
+                    attached = letters[j + 1:] if dashed else ''
+                    if attached:
+                        value = attached
+                    elif i < len(args):
+                        value = args[i]
+                        i += 1
+                    else:
+                        value = ''
+                    if c == 'C':
+                        folders.append(value)
+                    elif c == 'f':
+                        archives.append(value)
+                    if attached:
+                        break
+            first = False
+            continue
+        first = False
+        operands.append(w)
+    written = []
+    if extract and not to_stdout:
+        written += folders or ['.']
+    if writes_archive:
+        written += [a for a in archives if a != '-']
+    if removes:
+        written += [folders[-1].rstrip('/\\') + '/' + o for o in operands] if folders else operands
+    return written
+
+
+def _archiver_writes(name, args):
+    plain = [a for a in args if not a.startswith('-')]
+    if not plain:
+        return []
+    verb = plain[0].lower()
+    if verb in ('x', 'e'):
+        outs = [a[2:] for a in args if a.startswith('-o') and len(a) > 2]
+        if name in ('unrar', 'rar') and len(plain) > 2:
+            outs += [plain[-1]]
+        return outs or ['.']
+    if verb in ('a', 'u', 'd', 'rn', 'f'):
+        written = plain[1:2]
+        if any(a.lower() == '-sdel' for a in args):
+            written += plain[2:]
+        return written
+    return []
+
+
+def _rsync_scp_writes(name, args):
+    """(destination-side writes, operands). A flag's value is never an operand."""
+    values = RSYNC_VALUE_FLAGS if name == 'rsync' else SCP_VALUE_FLAGS
+    operands, written, remove_source, i = [], [], False, 0
+    while i < len(args):
+        w = args[i]
+        i += 1
+        if w.startswith('-') and len(w) > 1:
+            flag, eq, value = w.partition('=')
+            if flag.startswith(('--remove-source', '--remove-sent')):
+                remove_source = True
+            if flag in values and not eq:
+                value = args[i] if i < len(args) else ''
+                i += 1
+            if flag in RSYNC_WRITTEN_VALUES and value:
+                written.append(value)
+            continue
+        operands.append(w)
+    if len(operands) >= 2:
+        written.append(operands[-1])
+        if remove_source:
+            written += operands[:-1]
+    return written
+
+
+def _rclone_writes(args):
+    plain = [a for a in args if not a.startswith('-')]
+    if not plain or plain[0].lower() in RCLONE_READS:
+        return 'write', []
+    verb, rest = plain[0].lower(), plain[1:]
+    if verb in ('delete', 'deletefile', 'purge', 'rmdir', 'rmdirs', 'cleanup'):
+        return 'delete', rest
+    if verb in ('move', 'moveto'):
+        return 'move', rest
+    return 'write', rest[-1:]
+
+
+def _powershell_target(args):
+    """The file a *-Content style command writes: -Path's value, else the first plain word. The others are its value."""
+    for i, a in enumerate(args):
+        if a.lower() in ('-path', '-literalpath', '-filepath', '-pspath'):
+            return args[i + 1:i + 2]
+    i = 0
+    while i < len(args):
+        if args[i].startswith('-'):
+            i += 2
+            continue
+        return [args[i]]
+    return []
+
+
+def _download_target(name, args):
+    if name in ('iwr', 'invoke-webrequest', 'irm', 'invoke-restmethod'):
+        for i, a in enumerate(args):
+            if len(a) > 2 and '-outfile'.startswith(a.lower()):
+                return args[i + 1:i + 2]
+        return []
+    short = {'curl': 'o', 'wget': 'O', 'sort': 'o'}[name]
+    long_flag = {'curl': '--output', 'wget': '--output-document', 'sort': '--output'}[name]
+    for i, a in enumerate(args):
+        if a.startswith(long_flag + '='):
+            return [a.split('=', 1)[1]]
+        if a == long_flag:
+            return args[i + 1:i + 2]
+        m = re.fullmatch(r'-[a-zA-Z]*?' + short + r'(.*)', a)
+        if m and not a.startswith('--'):
+            return [m[1]] if m[1] else args[i + 1:i + 2]
+    return []
+
+
+def _written_paths(name, args, tool, under_cd):
+    """(op, words this command writes), or None when it isn't a tool this pass judges."""
+    plain = [a for a in args if not a.startswith('-')]
+    low = [a.lower() for a in args]
+    if name == 'tar' or name == 'bsdtar':
+        return 'write', _tar_writes(args)
+    if name in ARCHIVERS:
+        return 'write', _archiver_writes(name, args)
+    if name in ('rsync', 'scp'):
+        return 'copy', _rsync_scp_writes(name, args)
+    if name == 'rclone':
+        return _rclone_writes(args)
+    if name in DELETE_TOOLS:
+        return 'delete', plain
+    if name in COMPRESSORS:
+        return ('write', []) if any(a in COMPRESS_READS or re.fullmatch(r'-[a-zA-Z]*[clt][a-zA-Z]*', a) for a in args) else ('write', plain)
+    if name == 'ln':
+        for i, a in enumerate(args):
+            if a.startswith('--target-directory='):
+                return 'write', [a.split('=', 1)[1]]
+            if a == '--target-directory' or re.fullmatch(r'-[a-zA-Z]*t', a):
+                return 'write', args[i + 1:i + 2]
+        return 'write', [plain[-1] if len(plain) >= 2 else '.'] if plain else []
+    if name == 'mklink':
+        return 'write', [a for a in args if not a.startswith('/')][:1]
+    if name == 'fsutil' and len(plain) >= 3 and plain[0].lower() == 'hardlink':
+        return 'write', plain[2:3]
+    if name == 'zip':
+        written = plain[:1]
+        if any(re.fullmatch(r'-[a-zA-Z]*T[a-zA-Z]*|--test', a) for a in args):
+            return 'write', []
+        if any(re.fullmatch(r'-[a-zA-Z]*m[a-zA-Z]*|--move', a) for a in args):
+            written += plain[1:]
+        return 'write', written
+    if name in PS_WRITE_ALIASES and tool == 'PowerShell':
+        return 'write', _powershell_target(args)
+    if name == 'perl' and any(re.fullmatch(r'-[a-zA-Z]*i\S*', a) for a in args):
+        code = next((i for i, a in enumerate(args) if re.search(r'e', a) and a.startswith('-')), None)
+        return 'write', [a for a in args[(code + 2 if code is not None else 0):] if not a.startswith('-')]
+    if name == 'sed' and '--in-place' in low:
+        return 'write', plain[1:]
+    if name == 'install' and len(plain) >= 2:
+        return 'copy', plain[-1:]
+    if name in DOWNLOADERS:
+        return 'write', _download_target(name, args)
+    if name == 'dd':
+        return 'write', [a[3:] for a in args if a.startswith('of=')]
+    if under_cd:
+        if name in RELATIVE_DELETE:
+            return 'delete', plain or ['.']
+        if name in RELATIVE_WRITE:
+            return 'write', _powershell_target(args) if '-' in name else plain or ['.']
+        if name in ('cp', 'copy-item'):
+            return 'copy', plain[-1:]
+        if name in ('mv', 'move-item', 'rename-item'):
+            return 'move', plain
+        if name == 'git' and plain and plain[0].lower() in GIT_WRITES:
+            return 'write', ['.']
+    return None
+
+
+def _resolved(word, vcwd):
+    """(absolute path, certain). A wildcard is judged by its folder; a variable can't be known."""
+    value = msys_fix(word.strip())
+    if any(c in value for c in '$`%{}'):
+        return None, False
+    cut = re.split(r'[*?\[]', value, maxsplit=1)[0]
+    if cut != value:
+        cut = cut if cut.endswith(('/', '\\')) or not cut else os.path.dirname(cut)
+    try:
+        return norm(cut if cut and is_abs(cut) else os.path.join(vcwd, cut)), cut == value
+    except (ValueError, OSError):
+        return None, False
+
+
+def _is_location(path):
+    return bool(FOLDER.search(path.replace('\\', '/') + '/')) or in_save_location(path)
+
+
+def _judge_written(op, words, vcwd, base, text):
+    saves, reached, wild, unknown = [], [], [], False
+    for word in words:
+        if not word or word == '-' or _REMOTE.match(word):
+            continue
+        path, certain = _resolved(word, vcwd)
+        if path is None:
+            unknown = True
+            continue
+        if under(path, BACKUP_ROOT):
+            return decision('deny', reason='Save backups are kept forever: writing over or removing a backup is blocked.')
+        if not certain:
+            if _is_location(path) or holds_save_location(path) or os.path.isdir(os.path.join(path, 'Saves')):
+                wild.append(path)
+        elif _is_location(path):
+            if is_save(path):
+                saves.append(path)
+            else:
+                reached.append(path)
+        elif holds_save_location(path) or os.path.isdir(os.path.join(path, 'Saves')):
+            reached.append(path)
+    # A variable or loop anywhere in the command can carry a save folder named elsewhere in it.
+    if unknown and (FOLDER.search(text) or mentions_save_location(text) or _is_location(vcwd)):
+        return decision('needs_set', op=op, set=None, why='A file tool writes to a path the hook cannot read.', **base)
+    if wild:
+        return decision('needs_set', op=op, set=None, why='A file tool changes saves through a wildcard.', **base)
+    if reached:
+        if op in ('delete', 'move') and any(Path(p).name.lower() in ('saves', '__mo_saves') or holds_save_location(p)
+                                            or (os.path.isdir(p) and _marker_above(os.path.normcase(p).rstrip('\\/')) and p != vcwd)
+                                            for p in reached):
+            return decision('deny', reason='Deleting or moving a whole Saves folder is blocked, approval or not. Name the save files instead.')
+        return decision('needs_set', op=op, set=None, why='A file tool writes into a save folder without naming each save.', **base)
+    if saves:
+        return change(saves, saves, op, base)
+    return None
+
+
+def _piped_change(name, args, previous, vcwd, base, segment='', whole=''):
+    """`gci Saves | % Delete` and `gci Saves | ri`: what the lister before the pipe found is what gets changed."""
+    if previous is None or previous[0] not in PIPE_LISTERS:
+        return None
+    op = PIPE_ACTIONS.get(name)
+    if op is None and name in ('%', 'foreach', 'foreach-object'):
+        text = re.sub(r'"[^"]*"|\'[^\']*\'', ' ', segment)
+        method = next((a for a in args if PIPE_METHOD.match(a)), None)
+        if method is not None:
+            op = {'delete': 'delete', 'moveto': 'move', 'copyto': 'copy'}.get(method.strip('\'"').lower(), 'write')
+        elif re.search(r'\b(?:ri|remove-item|rm|del|mi|move-item|rni|rename-item|cpi|copy-item)\b|\.(?:delete|moveto)\s*\(', text, re.I):
+            op = 'delete'
+    if op is None:
+        return None
+    if op == 'copy' and any(a.startswith('-dest') for a in (x.lower() for x in args)):
+        return None
+    for word in [a for a in previous[1] if not a.startswith('-')] or ['.']:
+        path, _ = _resolved(word, vcwd)
+        unknown_near_saves = path is None and (FOLDER.search(whole) or mentions_save_location(whole) or _is_location(vcwd))
+        if unknown_near_saves or (path is not None and (_is_location(path) or holds_save_location(path))):
+            return decision('needs_set', op=op, set=None, why='A pipeline changes what it lists from a save folder.', **base)
+    return None
+
+
+def _transfer_alias(name, segment, vcwd, tool, base):
+    """cmd's and PowerShell's short names for copy, move and rename: the same reading as their long forms."""
+    words = _without_redirects(_shell_words(segment))[0]
+    long_name = {'copy': 'copy-item', 'cpi': 'copy-item', 'move': 'move-item', 'mi': 'move-item', 'ren': 'rename-item',
+                 'rename': 'rename-item', 'rni': 'rename-item', 'cp': 'copy-item', 'mv': 'move-item'}[name]
+    op = {'copy-item': 'copy', 'move-item': 'move', 'rename-item': 'rename'}[long_name]
+    at = next((i for i, w in enumerate(words) if re.split(r'[/\\]', w)[-1].lower().removesuffix('.exe') == name), None)
+    if at is None:
+        return None
+    # a cmd builtin writes /y style flags, which aren't sources
+    rest = [w for w in words[at + 1:] if not re.fullmatch(r'/[a-zA-Z-]+', w)]
+    form = transfer_form(' '.join(['"' + w + '"' if ' ' in w else w for w in [long_name] + rest]), None)
+    try:
+        resolved = resolve_transfer(form) if form else None
+    except OSError:
+        return decision('needs_set', op=op, set=None, why='A short copy or move name reaches a folder the hook cannot read.', **base)
+    if resolved is None:
+        for w in rest:
+            path, _ = _resolved(w, vcwd)
+            if not w.startswith('-') and (path is None or _is_location(path)):
+                return decision('needs_set', op=op, set=None, why='A short copy or move name reaches a save folder uncounted.', **base)
+        return None
+    affected, counted = change_sets(op, resolved, [])
+    if not [p for p in resolved[1] + (resolved[0] if op != 'copy' else []) if _is_location(p)]:
+        return None
+    if affected:
+        return change(affected, counted, op, base)
+    return decision('needs_set', op=op, set=None, why='A short copy or move name writes into a save folder.', **base)
+
+
+def file_tool_change(text, cwd, tool, base, _depth=0, whole=None):
+    """A decision for the first command that writes into a save folder, the backup store, or a parent of one; else None.
+    Nothing here reads a save or stats one: every judgement is on paths the command names."""
+    whole = text if whole is None else whole
+    start = vcwd = cwd or str(ROOT)
+    previous, stack, assigned = None, [], {}
+
+    def inner(code, next_tool=tool):
+        return file_tool_change(code, vcwd, next_tool, base, _depth + 1, whole) if code and _depth < 3 else None
+
+    for code in _substitutions(_without_heredoc_bodies(text)):
+        found = inner(code)
+        if found:
+            return found
+    for whole_segment, new_pipeline in split_segments(text):
+        parts = _split_on_ampersand(whole_segment.split('\n', 1)[0]) if '<<' in whole_segment else _split_on_ampersand(whole_segment)
+        fed_body = _heredoc_body(whole_segment)
+        for part_index, segment in enumerate(parts):
+            starts_pipeline = new_pipeline or part_index > 0
+            words, redirected = _without_redirects(_shell_words(segment))
+            name, args = _command_of(words)
+            if fed_body and re.search(r'\|\s*(?:\S*[/\\])?(?:bash|sh|zsh|dash|pwsh|powershell)\b', _masked(segment), re.I):
+                found = inner(fed_body, 'Bash')                  # cat <<EOF | bash: the pipe stays on the heredoc's first line
+                if found:
+                    return found
+            if redirected:
+                found = _judge_written('write', redirected, vcwd, base, whole)
+                if found:
+                    return found
+            if not name:
+                continue
+            if name in CHDIR_BACK or (name == 'cd' and args[:1] == ['-']):
+                vcwd = stack.pop() if stack else vcwd
+                previous = None
+                continue
+            if name in CHDIR_WORDS:
+                target = next((a for a in args if not a.startswith('-') and not re.fullmatch(r'/[a-zA-Z]', a)), None)
+                if target:
+                    path, certain = _resolved(target, vcwd)
+                    if path is not None and certain:
+                        stack.append(vcwd)
+                        vcwd = path
+                previous = None
+                continue
+            carried = _inner_command(name, args)
+            if carried:
+                found = inner(carried, 'PowerShell' if name in PS_CARRIERS else 'Bash' if name in SHELL_CARRIERS else tool)
+                if found:
+                    return found
+                continue
+            if name in SHELL_CARRIERS | PS_CARRIERS:             # code fed in by a heredoc or a pipe
+                fed = fed_body
+                if fed is None and previous is not None and not starts_pipeline:
+                    fed = previous[2]
+                found = inner(fed, 'PowerShell' if name in PS_CARRIERS else 'Bash')
+                if found:
+                    return found
+                continue
+            if name in EVAL_WORDS:
+                found = inner(' '.join(args))
+                if found:
+                    return found
+                continue
+            if name in START_WORDS and args:
+                listed = next((args[i + 1] for i, a in enumerate(args) if a.lower().startswith('-arg') and i + 1 < len(args)), '')
+                found = inner(_joined(args[:1]) + ' ' + listed)
+                if found:
+                    return found
+                continue
+            if name in INLINE_CODE and start != vcwd and _is_location(vcwd):
+                flag = INLINE_CODE[name]
+                body = next((args[i + 1] for i, a in enumerate(args) if a == flag and i + 1 < len(args)), None)
+                if body and changes_files(body):
+                    return decision('needs_set', op='write', set=None, why='Code that changes files runs from inside a save folder.', **base)
+            if name == 'xargs':
+                tool_words = [a for a in args if not a.startswith('-')]
+                listed_there = previous is not None and any(
+                    (_resolved(a, vcwd)[0] is None) or _is_location(_resolved(a, vcwd)[0]) for a in [x for x in previous[1] if not x.startswith('-')] or ['.'])
+                if vcwd != start and tool_words and listed_there and _written_paths(_command_of(tool_words)[0], [], tool, True) is not None:
+                    return decision('needs_set', op='write', set=None, why='xargs hands a file tool what was listed from a save folder.', **base)
+                continue
+            if not starts_pipeline:
+                if name in PIPE_FILTERS:
+                    continue                                     # it passes along what the lister found
+                if name.startswith('$') and name in assigned:
+                    previous = assigned[name]
+                    continue
+                found = _piped_change(name, args, previous, vcwd, base, segment, whole)
+                if found:
+                    return found
+            if name.startswith('$') and name in assigned:
+                previous = assigned[name]
+                continue
+            assign = re.match(r'^(\$[\w:]+)\s*=', segment)
+            previous = (name, args, fed_body or (' '.join(args) if name in ('echo', 'printf', 'write-output') else None))
+            if assign:
+                assigned[assign[1].lower()] = previous
+            if name in BLOCK_WORDS or '{' in _masked(segment):
+                body = _braced(segment)
+                found = inner(body) if body and body.strip() != segment.strip() else None
+                if found:
+                    return found
+                if name in BLOCK_WORDS:
+                    continue
+            comma_list = tool == 'PowerShell' and name in ('cp', 'mv') and any(',' in w for w in args)
+            if name in TRANSFER_ALIASES or comma_list:
+                found = _transfer_alias(name, segment, vcwd, tool, base)
+                if found:
+                    return found
+                continue
+            written = _written_paths(name, args, tool, under_cd=vcwd != start and _is_location(vcwd))
+            if written is not None:
+                found = _judge_written(written[0], written[1], vcwd, base, whole)
+                if found:
+                    return found
+    # split_segments takes the parentheses out of `(gci x).Delete()`, so a method call is looked for across the whole command.
+    masked = _masked(_without_heredoc_bodies(text))
+    for statement in re.split(r'[;\n]|&&|\|\|', masked):
+        if PAREN_METHOD.search(statement) and first_word(statement.lstrip('( '))[0] not in NOT_ACTIONS \
+                and (FOLDER.search(whole) or mentions_save_location(whole) or _is_location(vcwd)):
+            return decision('needs_set', op='delete', set=None, why='A method call changes what it lists from a save folder.', **base)
+    return None
+
+
 def decide(payload):
     """What to do with a tool call: allow / deny / backup / needs_files / needs_set."""
     tool = payload.get('tool_name', '')
@@ -1620,6 +2343,11 @@ def decide(payload):
                             'find -name/-iname [-type f] [-maxdepth N] -delete on a literal folder.')
         return decision('needs_set', op='delete', set=recursive[1],
                         why='A recursive or find-based delete reaches saves.', **base)
+    # Only command text is a command: an MCP tool's flattened strings are documents, and its `command` may be a game console's.
+    if isinstance(args, str) or (not tool.startswith('mcp__') and (args.get('command') or args.get('cmd'))):
+        written = file_tool_change(text, cwd, tool, base)
+        if written:
+            return written
     # The never-approvable folder rules above always run. Past them, a command that reaches no save folder and
     # runs no script is not a save change (user ruling 2026-10-30: guard the save folders, not the words).
     if not invoked_scripts(text) and not touches_save_location(text, cwd):
@@ -1685,7 +2413,7 @@ def decide(payload):
                             why='An invoked script drives in-game save/load through DevBench.', **base)
         # A script that can write counts when its code spells a save LOCATION, or when this command hands it one.
         # A bare .ess mention in its code does not: native_batch_run.py names `.ess` only to REFUSE touching saves.
-        if MUTATE.search(code) and (mentions_save_location(code) or hands_save_location(text, cwd)):
+        if changes_files(code) and (mentions_save_location(code) or hands_save_location(text, cwd)):
             return decision('needs_set', op=op if op in WRITE_OPS else 'write', set=None,
                             why='An invoked script changes saves the hook cannot count from the command.', **base)
     if not touches_save_location(text, cwd):
@@ -1724,7 +2452,9 @@ def decide(payload):
             if affected:
                 return change(affected, counted, op, base)
         acting = acting_text(text)
-        if FOLDER.search(acting) and MUTATE.search(acting):
+        # A folder known only by its marker or INI has no telltale word: a plain transfer naming it counts, but a script's
+        # own string literals do not (a broader test fired on 54 harmless heredocs in the replay).
+        if (FOLDER.search(acting) and changes_files(acting)) or (form and _named_folders(acting, cwd, lambda p, wild: in_save_location(p))):
             return decision('needs_set', op=op, set=wildcard_set(text, op, form),
                             why='The command changes a Saves folder without naming each save.', **base)
         if EXTENSION.search(acting) and (READ.search(acting) or MUTATE.search(acting)) \
@@ -1769,6 +2499,7 @@ def outward_copy(text, cwd):
         sources, dest = args[:-1], args[-1] if args else None
     elif cmd == 'copy-item':
         sources, dest, i = [], None, 0
+        rest = _comma_lists_as_one_word(rest)
         while i < len(rest):
             w, low = rest[i], rest[i].lower()
             if low in ('-path', '-literalpath') and i + 1 < len(rest):
@@ -1800,8 +2531,8 @@ def outward_copy(text, cwd):
     if not is_abs(dest):
         return False  # a relative destination is resolved against a cwd we cannot trust
     normed = norm(dest)
-    if FOLDER.search(normed.replace('\\', '/') + '/') or under(normed, BACKUP_ROOT):
-        return False  # into a Saves folder (creates/overwrites a save) or onto backups
+    if FOLDER.search(normed.replace('\\', '/') + '/') or in_save_location(normed) or under(normed, BACKUP_ROOT):
+        return False  # into a save folder (creates/overwrites a save) or onto backups
     for s in sources:
         s = msys_fix(s)
         if not is_abs(s) or any(c in s for c in '[]'):

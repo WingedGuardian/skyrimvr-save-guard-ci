@@ -1195,6 +1195,287 @@ class LockSwitch(unittest.TestCase):
         self.assertEqual('allow', self.kind('C:/Projects/kit/.modding-agent-harness/save-lock.json', 'Write'))
 
 
+class FileToolsThatChangeSaves(Env):
+    """2026-11-02: a peer's probe found these changed saves with no backup, because operation() called them reads, and a review
+    found `cd Saves && rm *` allowed too. Each simple command is now parsed for which tool it runs, from which folder, and what
+    it writes. The other direction matters as much: reading and copying saves OUT stays free, and text that merely names a tool
+    is not that tool."""
+
+    def judge(self, template, tool='Bash', cwd=None):
+        cmd = (template.replace('{s}', self.saves.as_posix()).replace('{b}', self.arch.as_posix())
+               .replace('{e}', self.saves.as_posix().replace(' ', '\\ ')))     # a backslash-escaped space
+        return guard.decide({'tool_name': tool, 'tool_input': {'command': cmd}, 'cwd': str(cwd or self.arch)})['kind']
+
+    def setUp(self):
+        super().setUp()
+        for stem in 'abc':
+            self.save(stem)
+
+    GUARDED = [('rsync -a {b}/ "{s}"/', 'Bash'), ('rsync -a {b}/ "{s}"/ --exclude x', 'Bash'),
+               ('rsync -a {b}/ "{s}"/ --link-dest {b}/prev', 'Bash'),
+               ('rsync -a --delete {b}/ "{s}"/ --exclude-from {b}/ex.txt', 'Bash'),
+               ('rsync -a {b}/ {b}/out --log-file "{s}"/a.ess', 'Bash'), ('/usr/bin/rsync -a {b}/ "{s}"/', 'Bash'),
+               ('rsync.exe -a {b}/ "{s}"/', 'Bash'), ('  rsync -a {b}/ "{s}"/', 'Bash'), ('env A=1 rsync -a {b}/ "{s}"/', 'Bash'),
+               ('nohup rsync -a {b}/ "{s}"/', 'Bash'), ('time rsync -a {b}/ "{s}"/', 'Bash'),
+               ('timeout 5 rsync -a {b}/ "{s}"/', 'Bash'), ('sudo -u x rsync -a {b}/ "{s}"/', 'Bash'),
+               ('if true; then rsync -a {b}/ "{s}"/; fi', 'Bash'), ('bash --login -c \'rsync -a {b}/ "{s}"/\'', 'Bash'),
+               ('bash -ec \'shred "{s}"/a.ess\'', 'Bash'), ('rclone copy {b} "{s}"', 'Bash'), ('scp {b}/a.ess "{s}"/a.ess', 'Bash'),
+               ('tar -xf {b}/x.tar -C "{s}"', 'Bash'), ('tar -f x -C "{s}" -x', 'Bash'), ('tar -C "{s}" --extract -f x', 'Bash'),
+               ('tar xf {b}/x.tar --directory="{s}"', 'Bash'), ('tar -xf x -C"{s}"', 'Bash'), ('tar -xC "{s}" -f x', 'Bash'),
+               ('tar xfC x "{s}"', 'Bash'), ('tar -xf x --dir="{s}"', 'Bash'), ('tar -xf x --direct "{s}"', 'Bash'),
+               ('tar -xf x --one-top-level="{s}"', 'Bash'), ('tar --ext -f x -C "{s}"', 'Bash'),
+               ('tar -cf {b}/o.tar --remove-files "{s}"', 'Bash'), ('tar -cf "{s}/a.ess" {b}', 'Bash'),
+               ('cd "{s}" && tar xf {b}/x.tar', 'Bash'), ('pushd "{s}"; tar xf {b}/x.tar', 'Bash'),
+               ('Set-Location "{s}"; tar xf {b}/x.tar', 'PowerShell'), ('cd "{s}" && rsync -a {b}/ .', 'Bash'),
+               ('cd "{s}" && 7z x {b}/x.7z', 'Bash'), ('cd "{s}" && gzip *', 'Bash'), ('cd "{s}" && shred *', 'Bash'),
+               ('cd "{s}" && cp {b}/x y', 'Bash'), ('cd "{s}" && rm *', 'Bash'), ('cd "{s}" && git clean -fdx', 'Bash'),
+               ('Set-Location "{s}"; gci | % Delete', 'PowerShell'), ('"C:/Program Files/7-Zip/7z.exe" x x.7z -o"{s}"', 'Bash'),
+               ('& "C:/Program Files/7-Zip/7z.exe" x x.7z -o"{s}"', 'PowerShell'), ('7z.exe x x.7z -o"{s}"', 'Bash'),
+               ('7z a "{s}/a.ess" {b}', 'Bash'), ('7z a -sdel {b}/o.7z "{s}"', 'Bash'), ('zip -m {b}/o.zip "{s}"/a.ess', 'Bash'),
+               ('Get-ChildItem "{s}" | % Delete', 'PowerShell'), ('gci "{s}" | foreach Delete', 'PowerShell'),
+               ('gci "{s}" | ri', 'PowerShell'), ('gci "{s}" | % { ri $_ }', 'PowerShell'),
+               ('gci "{s}" | % "Delete"', 'PowerShell'), ('(gci "{s}").Delete()', 'PowerShell'),
+               ('gci "{s}" | % Encrypt', 'PowerShell'), ('Get-ChildItem "{s}" | ForEach-Object { $_.Delete() }', 'PowerShell'),
+               ('node -e "require(\'fs\').renameSync(\'{s}/a.ess\', \'{b}/x.ess\')"', 'Bash'),
+               ('node -e "require(\'fs\').unlinkSync(\'{s}/a.ess\')"', 'Bash'),
+               ('node -e "require(\'fs\').writeFileSync(\'{s}/a.ess\', \'\')"', 'Bash'),
+               ('python -c "import subprocess; subprocess.run([\'rsync\',\'-a\',\'x\',\'{s}\'])"', 'Bash'),
+               ('shred "{s}"/a.ess', 'Bash'), ('shred.exe -u "{s}"/a.ess', 'Bash'), ('ln -sf {b}/x "{s}"/a.ess', 'Bash'),
+               ('ln -sf {b}/a.ess "{s}"', 'Bash'), ('ln -sf {b}/a.ess {b}/b.ess {b}/c.ess "{s}"', 'Bash'),
+               ('gzip "{s}"/a.ess', 'Bash'), ('7z x {b}/x.7z -o"{s}"', 'Bash'), ('cmd /c mklink "{s}/a.ess" {b}/x', 'PowerShell'),
+               ('cmd /c del "{s}/a.ess"', 'PowerShell'), ('ri "{s}/a.ess"', 'PowerShell'), ('sc "{s}/a.ess" x', 'PowerShell'),
+               ('ac "{s}/a.ess" x', 'PowerShell'), ('clc "{s}/a.ess"', 'PowerShell'), ('copy {b}/a.ess "{s}/a.ess"', 'PowerShell'),
+               ('move "{s}/a.ess" {b}/x', 'PowerShell'), ('ren "{s}/a.ess" x.ess', 'PowerShell'),
+               ('rename "{s}/a.ess" x.ess', 'PowerShell'), ('cmd /c copy {b}/a.ess "{s}/a.ess"', 'Bash'),
+               ('cmd /c move "{s}/a.ess" {b}/x', 'Bash'), ('Copy-Item {b}/a.ess,{b}/b.ess "{s}"', 'PowerShell'),
+               ('Copy-Item $d,{b}/b.ess,{b}/c.ess "{s}"', 'PowerShell'),
+               ('python -c "import os; os.symlink(\'{b}/x\', \'{s}/a.ess\')"', 'Bash'), ('curl -o "{s}"/a.ess http://x/y', 'Bash'),
+               ('iwr http://x/y -OutFile "{s}/a.ess"', 'PowerShell'), ('perl -pi -e \'s/a/b/\' "{s}"/a.ess', 'Bash'),
+               ('dd if=/dev/zero of="{s}"/a.ess', 'Bash'), ('xcopy {b}/a.ess "{s}"', 'Bash'), ('rm "{s}"/a.ess', 'Bash'),
+               ('bash -c \'shred "{s}"/a.ess\'', 'Bash'), ('rsync -a --remove-source-files "{s}"/ {b}/', 'Bash'),
+               ('rsync -a {b}/ "{s}"/ 2>&1', 'Bash'), ('rsync -a {b}/ "{s}"/ >/dev/null', 'Bash'),
+               ('rsync -a {b}/ "{s}"/ > {b}/log', 'Bash'), ('rsync -a {b}/ "{s}"/ &', 'Bash'),
+               ('ln -sf {b}/x "{s}/a.ess" 2>&1', 'Bash'), ('scp {b}/a "{s}/a.ess" 2>/dev/null', 'Bash'),
+               ('rclone copy {b} "{s}" 2>&1', 'Bash'), ('install {b}/x "{s}/a.ess" 2>&1', 'Bash'),
+               ('cat {b}/x > "{s}"/a.ess', 'Bash'), ('sleep 1 & rsync -a {b}/ "{s}"/', 'Bash'), ('ls & shred "{s}/a.ess"', 'Bash'),
+               ('&tar -xf x -C "{s}"', 'PowerShell'), ('echo `shred "{s}/a.ess"`', 'Bash'),
+               ('echo "$(rsync -a {b}/ {e}/)"', 'Bash'), ('x="$(shred {e}/a.ess)"', 'Bash'),
+               ('bash -c "shred \\"{s}/a.ess\\""', 'Bash'), ('bash -c "rsync -a {b}/ \\"{s}\\"/"', 'Bash'),
+               ('bash -c "tar -xf x -C \\"{s}\\""', 'Bash'), ('tar -xf x -C {e}', 'Bash'), ('tar -xf x --directory {e}', 'Bash'),
+               ('tar -xf x --directory={e}', 'Bash'), ('7z x x.7z -o{e}', 'Bash'),
+               ('bash <<\'EOF\'\nrsync -a {b}/ "{s}"/\nEOF\n', 'Bash'), ('sh <<EOF\nshred "{s}/a.ess"\nEOF\n', 'Bash'),
+               ('cat <<\'EOF\' | bash\nshred "{s}/a.ess"\nEOF\n', 'Bash'), ('echo \'shred "{s}/a.ess"\' | bash', 'Bash'),
+               ('S="{s}"; rsync -a {b}/ "$S"/', 'Bash'), ('S="{s}"; shred "$S"/a.ess', 'Bash'),
+               ('S="{s}"; tar -xf x -C "$S"', 'Bash'), ('for f in "{s}"/*.ess; do shred "$f"; done', 'Bash'),
+               ('ls "{s}" | while read f; do shred "$f"; done', 'Bash'), ('$s="{s}"; shred "$s/a.ess"', 'PowerShell'),
+               ('foreach ($f in gci "{s}") { shred $f }', 'PowerShell'),
+               ('gci "{s}" | ? Name -like \'a*\' | % Delete', 'PowerShell'), ('gci "{s}" | select -First 3 | ri', 'PowerShell'),
+               ('gci "{s}" | sort | mi -Destination {b}', 'PowerShell'), ('$f = gci "{s}"; $f | % Delete', 'PowerShell'),
+               ('$f = gci "{s}"; $f | ri', 'PowerShell'), ('$r = rsync -a {b}/ "{s}"/', 'PowerShell'),
+               ('$r = & tar -xf x -C "{s}"', 'PowerShell'), ('$null = shred "{s}/a.ess"', 'PowerShell'),
+               ('try { rsync -a {b}/ "{s}"/ } catch {}', 'PowerShell'), ('1 | % { rsync -a {b}/ "{s}"/ }', 'PowerShell'),
+               ('function f { rsync -a {b}/ "{s}"/ }; f', 'PowerShell'), ('Measure-Command { shred "{s}/a.ess" }', 'PowerShell'),
+               ('Invoke-Command { shred "{s}/a.ess" }', 'PowerShell'), ('Start-Job { shred "{s}/a.ess" }', 'PowerShell'),
+               ('iex \'shred "{s}/a.ess"\'', 'PowerShell'), ('Start-Process rsync -ArgumentList \'-a {b}/ "{s}"/\'', 'PowerShell'),
+               ('Push-Location "{s}"; ri a.ess', 'PowerShell'), ('cd "{s}" && ls | xargs shred', 'Bash'),
+               ('cd "{s}" && ls | xargs rm', 'Bash'),
+               ('cd "{s}" && python -c "import glob,os;[os.remove(f) for f in glob.glob(\'*\')]"', 'Bash'),
+               ('rsync -S {b}/ "{s}"/', 'Bash'), ('ln -t "{s}" {b}/x', 'Bash'), ('ln --target-directory="{s}" {b}/x', 'Bash'),
+               ('curl -sSo "{s}/a.ess" http://x', 'Bash'), ('curl -Lo "{s}/a.ess" http://x', 'Bash'),
+               ('wget -qO "{s}/a.ess" http://x', 'Bash'), ('sort -uo "{s}/a.ess" {b}/x', 'Bash'),
+               ('iwr http://x -OutF "{s}/a.ess"', 'PowerShell'), ('sc -Value x -Path "{s}/a.ess"', 'PowerShell'),
+               ('ac -Value x -Path "{s}/a.ess"', 'PowerShell'), ('tar -cf {b}/o -C "{s}" --remove-files a.ess', 'Bash'),
+               ('Set-Location "{s}"; (gci).Delete()', 'PowerShell'), ('cd "{s}"; (gci).Delete()', 'Bash'),
+               ('echo hi; (gci "{s}").Delete()', 'PowerShell'), ('echo "$(shred \'{s}/a.ess\')"', 'Bash'),
+               ('x="$(tar -xf x -C \'{s}\')"', 'Bash'), ('gci $d "{s}" | ri', 'PowerShell'),
+               ('$d = "{s}"; gci $d | ri', 'PowerShell')]
+    NEEDS_APPROVAL = [('shred -u "{s}"/a.ess "{s}"/b.ess "{s}"/c.ess', 'Bash'), ('cp {b}/a.ess,{b}/b.ess,{b}/c.ess "{s}"', 'PowerShell'),
+                      ('copy {b}/a.ess,{b}/b.ess,{b}/c.ess "{s}"', 'PowerShell'),
+                      ('Copy-Item {b}/a.ess,{b}/b.ess,{b}/c.ess "{s}" -Force', 'PowerShell'),
+                      ('Copy-Item {b}/a.ess, {b}/b.ess, {b}/c.ess "{s}"', 'PowerShell'),
+                      ('Copy-Item -Path {b}/a.ess,{b}/b.ess,{b}/c.ess -Destination "{s}"', 'PowerShell'),
+                      ('Remove-Item "{s}/a.ess","{s}/b.ess","{s}/c.ess"', 'PowerShell')]
+    NEVER = [('rclone purge "{s}"', 'Bash'), ('rclone delete "{s}"', 'Bash'), ('rclone move "{s}" {b}', 'Bash')]
+    FREE = [('ls "{s}"', 'Bash'), ('rsync -a "{s}"/ {b}/', 'Bash'), ('rsync --list-only "{s}"/', 'Bash'),
+            ('rsync "{s}"/', 'Bash'), ('rsync -av --exclude \'*.tmp\' "{s}"/ {b}/out/', 'Bash'),
+            ('rsync -a "{s}"/ user@host:/x/', 'Bash'), ('scp "{s}"/a.ess {b}/a.ess', 'Bash'),
+            ('scp "{s}"/a.ess user@host:/x/', 'Bash'), ('scp -r "{s}" user@host:/x/', 'Bash'),
+            ('scp -P 22 "{s}"/a.ess user@host:/x/', 'Bash'), ('rclone ls "{s}"', 'Bash'), ('rclone copy "{s}" {b}/o', 'Bash'),
+            ('7z x "{s}"/x.7z -o{b}', 'Bash'), ('7z l "{s}"/x.7z', 'Bash'), ('ln -s "{s}"/a.ess {b}/link', 'Bash'),
+            ('tar -czf {b}/out.tgz "{s}"', 'Bash'), ('tar -tf "{s}"/x.tar', 'Bash'), ('tar -xf "{s}"/x.tar -C {b}', 'Bash'),
+            ('tar -xf "{s}/x.tar" -C {b}/o && ls {b}/o', 'Bash'), ('tar -cf {b}/o.tar -X {b}/ex -C "{s}" .', 'Bash'),
+            ('tar -cXf {b}/o.tar {b}/ex -C "{s}" .', 'Bash'), ('tar -cf - -C "{s}" . | gzip > {b}/o.gz', 'Bash'),
+            ('tar -cf - "{s}" | tar -xf - -C {b}', 'Bash'), ('gzip -l "{s}"/x.gz', 'Bash'),
+            ('gzip -c "{s}"/a.ess > {b}/a.gz', 'Bash'), ('gunzip -t "{s}"/x.gz', 'Bash'), ('xz -l "{s}"/x.xz', 'Bash'),
+            ('cat "{s}"/a.ess | gzip > {b}/a.gz', 'Bash'), ('rg -n \'rsync|shred|ln\' "{s}"', 'Bash'),
+            ('rg \'foo|ln x\' "{s}"/a.ess', 'Bash'), ('grep \'a|scp b\' "{s}"/a.ess', 'Bash'),
+            ('rg -n "foo(ln bar)" "{s}/a.ess"', 'Bash'), ('grep -n ln "{s}"/a.txt', 'Bash'),
+            ('sha256sum "{s}"/a.ess; echo "ok; ln done"', 'Bash'),
+            ('sha256sum "{s}/a.ess" && echo "done; rsync skipped"', 'Bash'), ('ls "{s}" && rsync -a {b}/x {b}/y', 'Bash'),
+            ('ls "{s}" && tar -xf {b}/x.tar -C {b}', 'Bash'), ('ls "{s}" && ln -s {b}/x {b}/y', 'Bash'),
+            ('ls "{s}" && gzip {b}/x', 'Bash'), ("cat > {b}/notes.md <<'EOF'\nln -s a /Saves/b\nEOF\n", 'Bash'),
+            ("python - <<'PY'\nln = '{s}'\nprint(ln + 'x')\nPY\n", 'Bash'), ('cd "{s}" && ls', 'Bash'),
+            ('cd "{s}" && sha256sum a.ess', 'Bash'), ('cd "{s}" && git status', 'Bash'), ('cd {b} && rm x', 'Bash'),
+            ('Copy-Item "{s}/a.ess","{s}/b.ess","{s}/c.ess" {b}', 'PowerShell'), ('copy "{s}/a.ess" {b}/a.ess', 'PowerShell'),
+            ('gci "{s}" | % Name', 'PowerShell'), ('gci "{s}" | % { $_.Name }', 'PowerShell'),
+            ('gci "{s}" | Get-FileHash', 'PowerShell'), ('cp "{s}"/a.ess {b}/a.ess', 'Bash'), ('sha256sum "{s}"/a.ess', 'Bash'),
+            ('git commit -m "guard: (gci Saves).Delete() now counted"', 'Bash'), ('echo "(gci /Saves).Delete()"', 'Bash'),
+            ('grep -n \'$x.moveTo(\' "{s}/a.txt"', 'Bash'), ('pushd "{s}"; popd; rm {b}/x', 'Bash'),
+            ('cd "{s}"; cat a.txt; cd -; rm {b}/x', 'Bash'), ('gci "{s}" -Name | % Replace \'.ess\',\'\'', 'PowerShell'),
+            ('gci "{s}" | % { "$($_.Name) mi" }', 'PowerShell'), ('Set-Location "{s}"; Set-Content {b}/x y', 'PowerShell'),
+            ('zip -T "{s}/x.zip"', 'Bash'), ('curl -O http://x/Saves/a.ess', 'Bash'), ('rsync -a {b}/x {b}/y 2>&1', 'Bash'),
+            ('ls "{s}" 2>&1', 'Bash'), ('sleep 1 & ls "{s}"', 'Bash'), ('x="$(ls "{s}")"', 'Bash'),
+            ('bash <<\'EOF\'\nls "{s}"\nEOF\n', 'Bash'), ('try { ls "{s}" } catch {}', 'PowerShell'),
+            ('gci "{s}" | ? Name -like "a*" | select -First 3', 'PowerShell'), ('$f = gci "{s}"; $f | % Name', 'PowerShell'),
+            ('cd "{s}" && ls | wc -l', 'Bash'), ('cd "{s}" && ls | xargs echo', 'Bash'),
+            ('cd "{s}" && python -c "print(1)"', 'Bash'), ('curl -sS http://x/y', 'Bash'), ('curl -sSo {b}/a http://x', 'Bash'),
+            ('sort -u "{s}/a.txt"', 'Bash'), ('Start-Process notepad', 'PowerShell'), ('iex \'ls "{s}"\'', 'PowerShell'),
+            ('grep \'>\' "{s}/a.txt"', 'Bash'), ('grep ">" "{s}/a.txt"', 'Bash'), ('grep -c \'>>\' "{s}/a.txt"', 'Bash'),
+            ('rg \'>\' "{s}"', 'Bash'), ('Select-String \'>\' "{s}/a.txt"', 'PowerShell'), ('grep \'>\' "{s}/a.ess"', 'Bash'),
+            ('git commit -m "$(cat <<\'EOF\'\nguard: `shred /Saves/a.ess` now counted\nEOF\n)"', 'Bash'),
+            ('git commit -m "guard: fix { shred /Saves/a.ess } form"', 'Bash'),
+            ("cat > {b}/notes.md <<'EOF'\nUse `rsync -a x /Saves/` to copy.\nEOF\n", 'Bash'),
+            ("cat > {b}/notes.md <<'EOF'\nfoo & shred /Saves/a.ess\n$(shred /Saves/a.ess)\n{ shred /Saves/a.ess; }\nEOF\n",
+             'Bash'),
+            ('python - <<\'PY\'\ncfg = {}\nln = "{s}/a.txt"\nprint(open(ln).read())\nother = {}\nPY\n', 'Bash'),
+            ('python - <<\'PY\'\nprint("`shred {s}/a.ess`")\nPY\n', 'Bash'), ('echo \'{ shred "{s}/a.ess" }\'', 'Bash'),
+            ('awk \'{ shred = 1 } END { print shred }\' "{s}/a.txt"', 'Bash'), ('jq \'{a: .b}\' "{s}/a.json"', 'Bash'),
+            ('ls "{s}" > "$LOG"', 'Bash'), ('sha256sum "{s}/a.ess" > "$OUT"', 'Bash'), ('echo \'$(shred x)\' "{s}"', 'Bash'),
+            ("Get-ChildItem $env:TEMP -Directory -Filter 'hp-*' | Remove-Item -Recurse -Force", 'PowerShell')]
+
+    def test_each_tool_that_changes_saves_is_guarded(self):
+        for cmd, tool in self.GUARDED:
+            with self.subTest(cmd=cmd):
+                self.assertIn(self.judge(cmd, tool), ('backup', 'needs_set', 'needs_files', 'deny'))
+
+    def test_more_than_two_needs_the_typed_approval(self):
+        for cmd, tool in self.NEEDS_APPROVAL:
+            with self.subTest(cmd=cmd):
+                self.assertIn(self.judge(cmd, tool), ('needs_set', 'needs_files'))
+
+    def test_a_whole_save_folder_is_never_deleted_or_moved(self):
+        for cmd, tool in self.NEVER:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.judge(cmd, tool), 'deny')
+
+    def test_reading_copying_out_and_mere_text_stay_free(self):
+        for cmd, tool in self.FREE:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.judge(cmd, tool), 'allow')
+
+    def test_exactly_one_named_save_is_backed_up_not_refused(self):
+        for cmd, tool in (('shred.exe -u "{s}/a.ess"', 'Bash'), ('ri "{s}/a.ess"', 'PowerShell'), ('copy {b}/a.ess "{s}/a.ess"', 'PowerShell'),
+                          ('Copy-Item {b}/a.ess,{b}/b.ess "{s}"', 'PowerShell'), ('curl -o "{s}/a.ess" http://x/y', 'Bash')):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.judge(cmd, tool), 'backup')
+
+    def test_the_backup_store_is_never_written(self):
+        guard.BACKUP_ROOT.mkdir(parents=True, exist_ok=True)
+        store = guard.BACKUP_ROOT.as_posix()
+        for cmd in ('rsync -a {b}/ "' + store + '"/', 'tar -xf x -C "' + store + '"', 'tar -cf {b}/o.tar --remove-files "' + store + '"',
+                    'shred "' + store + '"/manifest.jsonl'):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.judge(cmd), 'deny')
+
+    def test_a_shell_already_inside_a_save_folder_counts(self):
+        for cmd in ('tar -xf x.tar', '7z x {b}/x.7z', 'rsync -a {b}/ .', 'gzip *', 'ln -s {b}/x y'):
+            with self.subTest(cmd=cmd):
+                self.assertNotEqual(self.judge(cmd, cwd=self.saves), 'allow')
+        self.assertEqual(self.judge('gzip -l x.gz', cwd=self.saves), 'allow')
+
+    def test_cd_is_followed_and_leaving_again_counts_too(self):
+        self.assertNotEqual(self.judge('cd "{s}" && rm *'), 'allow')
+        self.assertEqual(self.judge('cd "{s}" && ls && cd {b} && rm x'), 'allow')
+        self.assertNotEqual(self.judge('cd "{s}" && cd .. && cd Saves && shred *'), 'allow')
+
+    def test_a_variable_destination_near_a_save_folder_cannot_be_judged(self):
+        self.assertEqual(self.judge('rsync -a "{s}"/ $DEST'), 'needs_set')
+        self.assertEqual(self.judge('rsync -a {b}/ $DEST'), 'allow')       # twin: nothing here reaches a save folder
+
+    def test_a_parent_of_a_save_folder_counts(self):
+        parent = self.saves.parent.as_posix()
+        self.assertNotEqual(self.judge('rsync -a --delete {b}/ "' + parent + '"/'), 'allow')
+        self.assertNotEqual(self.judge('tar -xf x -C "' + parent + '"'), 'allow')
+
+    def test_more_spellings_each_clause_must_catch(self):
+        parent = self.saves.parent.as_posix()
+        for cmd in ('A=1 rsync -a {b}/ "{s}"/', 'tar --create --file "{s}/a.ess" {b}', 'rsync -i {b}/ "{s}"/', 'rsync -P {b}/ "{s}"/',
+                    'cd "{s}" && dd if=/dev/zero of=x', 'shred "' + parent + '"/Sa*'):
+            with self.subTest(cmd=cmd):
+                self.assertNotEqual(self.judge(cmd), 'allow')
+
+    def test_a_remote_destination_named_saves_is_not_a_local_folder(self):
+        self.assertEqual(self.judge('rsync -a {b}/ user@host:/Saves/'), 'allow')
+
+    def test_only_a_lister_feeds_a_pipeline_change(self):
+        self.assertEqual(self.judge('Get-Process | ri', 'PowerShell', cwd=self.saves), 'allow')
+
+    def test_extracting_to_stdout_writes_nothing(self):
+        for cmd in ('tar -xOf x.tar m', 'tar -xf x.tar --to-stdout m'):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.judge(cmd, cwd=self.saves), 'allow')
+
+    def test_a_wildcard_is_approvable_not_a_whole_folder(self):
+        self.assertEqual(self.judge('cd "{s}" && rm *'), 'needs_set')
+        self.assertEqual(self.judge('shred "{s}"/*.ess'), 'needs_set')
+
+    def test_leaving_a_folder_is_followed(self):
+        self.assertEqual(self.judge('pushd "{s}"; popd; shred x'), 'allow')
+        self.assertEqual(self.judge('cd "{s}"; cat a.txt; cd -; shred x'), 'allow')
+
+    def test_a_cmd_cd_flag_is_not_the_target(self):
+        self.assertNotEqual(self.judge('cd /d "{s}" && shred *'), 'allow')
+
+    def test_an_mcp_tools_text_is_not_a_command(self):
+        text = 'A 5" screen\nrsync -a x ' + self.saves.as_posix() + '/\n'
+        kind = guard.decide({'tool_name': 'mcp__docs__write', 'tool_input': {'body': text}, 'cwd': str(self.arch)})['kind']
+        self.assertEqual(kind, 'allow')
+
+    def test_a_comma_list_holding_a_variable_cannot_be_counted(self):
+        self.assertEqual(self.judge('Copy-Item $d,{b}/b.ess,{b}/c.ess "{s}"', 'PowerShell'), 'needs_set')
+
+    def test_a_folder_known_only_by_its_marker_is_guarded(self):
+        marked = Path(self._tmp.name) / 'kept'
+        marked.mkdir()
+        (marked / guard.PROTECT_MARKER).touch()
+        where = '"' + marked.as_posix() + '"'
+        for cmd in ('rsync -a {b}/ ' + where + '/', 'tar -xf x -C ' + where, 'cp -r {b}/x ' + where + '/', 'cd ' + where + ' && rm *',
+                    'gci ' + where + ' | ri'):
+            with self.subTest(cmd=cmd):
+                self.assertNotEqual(self.judge(cmd), 'allow')
+
+    def test_a_script_naming_a_marked_folder_in_a_string_is_not_a_change(self):
+        # 54 harmless heredocs in the replay: a script's own string literal isn't a command naming that folder
+        marked = Path(self._tmp.name) / 'kept'
+        marked.mkdir()
+        (marked / guard.PROTECT_MARKER).touch()
+        cmd = "python - <<'PY'\nnote = '" + marked.as_posix() + "'\nPath('n.md').write_text(note)\nPY\n"
+        self.assertEqual(self.judge(cmd), 'allow')
+
+    def test_a_script_that_runs_a_file_tool_on_saves_is_guarded(self):
+        script = Path(self._tmp.name) / 'mover.py'
+        at = self.saves.as_posix()
+        for body in ("import subprocess\nsubprocess.run(['rsync', '-a', 'x', '" + at + "'])\n",
+                     "const f = require('fs');\nfs.renameSync('x', '" + at + "/a.ess');\n",
+                     "import os\nos.remove('" + at + "/a.ess')\n",
+                     "import tarfile\ntarfile.open('x').extractall('" + at + "')\n",
+                     "import zipfile\nz = zipfile.ZipFile('x')\nz.extractall('" + at + "')\n"):
+            with self.subTest(body=body):
+                script.write_text(body, encoding='utf8')
+                self.assertEqual(self.judge('python "' + script.as_posix() + '"'), 'needs_set')
+        script.write_text("import subprocess\nsubprocess.run(['rsync', '-a', 'x', 'y'])\n", encoding='utf8')    # twin: no save named
+        self.assertEqual(self.judge('python "' + script.as_posix() + '"'), 'allow')
+
+    def test_a_shell_script_line_counts_but_a_variable_named_like_a_tool_does_not(self):
+        script = Path(self._tmp.name) / 'mover.sh'
+        at = self.saves.as_posix()
+        script.write_text('#!/bin/bash\nrsync -a x ' + at + '/\n', encoding='utf8')
+        self.assertEqual(self.judge('bash "' + script.as_posix() + '"'), 'needs_set')
+        py = Path(self._tmp.name) / 'names.py'
+        py.write_text("ln = '" + at + "'\nprint(ln)\n", encoding='utf8')
+        self.assertEqual(self.judge('python "' + py.as_posix() + '"'), 'allow')
+
+
 class RuntimeRequests(unittest.TestCase):
     """Runtime save/load through DevBench, judged by request STRUCTURE (2026-11-01 repair). Sources: the Codex
     gateway session's frozen audit (rewrite-audit-2026-11-01: 13 false allows, 6 false refusals of 42 cases) and a

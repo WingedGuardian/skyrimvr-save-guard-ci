@@ -121,7 +121,6 @@ PAIR = re.compile(r'^(.*)\.(ess|skse)((?:\.[\w.-]+)?)(?::[\w:$]+)?$', re.I)
 FOLDER = re.compile(r'(?:[/\\](?:__mo_)?saves|(?<![\w-])(?-i:Saves))(?=[/\\\s\"\';|)&,]|$)', re.I)
 MUTATE = re.compile(r'\b(?:move-item|copy-item|remove-item|rename-item|set-content|add-content|clear-content|out-file|mv|cp|rm|del|erase|robocopy|xcopy|touch|tee|truncate|dd|set-itemproperty|rmdir|rd|expand-archive|unzip)\b|shutil\.(?:move|copy\w*|rmtree)|\.(?:unlink|rename|replace|write_\w+|utime|open|delete|moveto|copyto)\s*\(|::(?:write|create|append|delete|move|copy|replace)\w*', re.I)
 READ = re.compile(r'get-content|get-item\b|get-filehash|read_bytes|read_text|\.stat\s*\(|\bopen\s*\(|\b(?:cat|type|sha256sum|stat)\s', re.I)
-HELPER = re.compile(r'(?<![\w.-])(?:isolate|isolation|restore-isolation|backup-production|prepare-dialogue|prepare-isolation)\.(?:ps1|py|sh)\b', re.I)
 EXTENSION = re.compile(r'\.(?:ess|skse)(?![\w])', re.I)
 # A save LOCATION spelled in code: a Saves path component, the quoted component 'Saves' (os.path.join(..., 'Saves')),
 # or the INI key that moves the folder. Not the bare word: "Saves your session stats" in a help string made every
@@ -134,11 +133,54 @@ LOCATION = re.compile(r'[/\\](?:__mo_)?saves(?=[/\\\s\"\';|)&,]|$)'
                       # the bare shell word as an ARGUMENT (`ls Saves)`, `cd Saves`, `Saves/a.ess`), never followed
                       # by a space: "Saves your session stats" stays prose
                       r'|(?<![\w-])(?-i:Saves)(?=[/\\\"\';|)&,]|$)', re.I | re.M)
-# A script that drives the game's own save/load through DevBench: policy keeps generic runtime save/load denied, and
-# the command-level check only sees calls spelled in the command itself. Specific API shapes, not words.
-RUNTIME_CALL = re.compile(r'tool/game[\"\']?\s*,\s*\{[^}]{0,120}[\"\']action[\"\']\s*:\s*[\"\'](?:save|load|loadLast)\b'
-                          r'|[\"\']function[\"\']\s*:\s*[\"\'](?:SaveGame|LoadGame|RequestSave|RequestAutoSave)[\"\']'
-                          r'|[\"\']command[\"\']\s*:\s*[\"\']\s*(?:save|load|savegame|loadgame|qsave|qload)\b', re.I)
+# A DevBench request that saves or loads the game: policy keeps generic runtime save/load denied (CLAUDE.md), the
+# pinned protected controller excepted. Judged by the request's STRUCTURE -- a key/value pair in any quoting, layout or
+# language (JSON, Python dict or keywords, PowerShell @{}) -- never by word proximity. 2026-11-01 audit
+# (rewrite-audit-2026-11-01): the old one-line 100-character word window refused `?name=game` followed by `json.load(`
+# and missed every multiline, single-quoted and here-string request.
+RUNTIME_PAIR = re.compile(r'(?<![\w$-])[\"\']?(action|function|command|tool|tool_?name|endpoint|name)[\"\']?\s*'
+                          r'(?::|=>|=)\s*[\"\']([^\"\'\r\n]{0,200})[\"\']', re.I)
+RUNTIME_QUERY = re.compile(r'[?&](action|tool)=([\w-]+)', re.I)
+RUNTIME_FUNCTIONS = {'savegame', 'loadgame', 'requestsave', 'requestautosave', 'quittomainmenu'}
+RUNTIME_ACTIONS = {'save', 'load', 'loadlast'}
+RUNTIME_TOOL_KEYS = {'tool', 'tool_name', 'toolname', 'endpoint', 'name'}
+RUNTIME_CONSOLE = re.compile(r'(?:^|;)\s*(?:save|load|savegame|loadgame|qsave|qload)\b', re.I)
+RUNTIME_CONTEXT = re.compile(r'devbench|8921|/api/tool/|mcp__|localhost|127\.0\.0\.1', re.I)
+# Where a request names its DevBench tool: a URL path, a variable-built URL ($B/game, ${env:X}/game, $($c.Base)/game),
+# a URL template ('{}/game'.format(...), '%s/game' % ..., f'{BASE}/game'), a call whose first argument is the tool
+# (api('tool/game', ...) or the gateway helpers' call('game', ...)), a concatenated path, or an MCP tool name.
+# A bare tuple fixture -- [('tool/game', {...})] in a test that checks the request is REFUSED -- names no tool: the
+# 2026-11-01 replay found the gateway's own tests run that way (test_single_owner_exit.py). User decision 2026-11-01
+# (precise over conservative): a loop that SENDS such tuples stays a known gap.
+_TOOLS = r'(game|console|papyrus|scenario)'
+RUNTIME_CALL_TOOL = (r'\b(?!(?:get|pop|setdefault|startswith|endswith|count|index|find|replace|split)\b)\w+\s*\(\s*'
+                     r'[rRfFbB]{0,2}[\"\'](?:[^\"\'\r\n]*/)?' + _TOOLS + r'[\"\']\s*,')
+RUNTIME_TOOL = re.compile(r'/api/tool/' + _TOOLS + r'\b'
+                          r'|\$(?:\{[^}\s]{1,80}\}|\([^)\r\n]{1,80}\)|\w+(?::\w+)?)/' + _TOOLS + r'\b'
+                          r'|[\"\'][^\"\'\r\n]{0,200}?(?:\{[^}\"\'\r\n]{0,80}\}|%s|%\(\w+\)s)/(?:tool/)?' + _TOOLS + r'[\"\']'
+                          # the tool, then its body: call('game', {...}); never a lookup such as consent.get('game')
+                          r'|' + RUNTIME_CALL_TOOL +
+                          r'|\+\s*[rRfFbB]{0,2}[\"\']/?(?:tool/)?' + _TOOLS + r'[\"\']'
+                          r'|mcp__[\w-]*?__' + _TOOLS + r'\b', re.I)
+RUNTIME_TOKEN = re.compile(r'[\"\'](?:save|load|loadlast)[\"\']', re.I)
+# A body the hook cannot read (curl -d @file, Invoke-RestMethod -InFile) aimed at the game tool may save or load.
+RUNTIME_FILE_BODY = re.compile(r'(?:^|\s)(?:-d|--data[\w-]*|--json)\s+[\"\']?@|(?:^|\s)-InFile\s', re.I)
+# A COMMAND made only of text tools (a commit message, an echo, an rg) that QUOTES a request sends nothing (review
+# 2026-11-01) -- unless a sender appears anywhere in it. Fail-safe: any other program, including an unknown client
+# (`client.send({'tool': 'game', ...})`), counts as a possible sender. Script sources are judged without this
+# (need_target=False): a script that holds a request is assumed to send it, as before.
+TEXT_TOOLS = {'git', 'gh', 'rg', 'grep', 'egrep', 'fgrep', 'echo', 'printf', 'write-output', 'write-host',
+              'select-string', 'sls', 'findstr', 'get-content', 'gc', 'cat', 'head', 'tail', 'wc', 'uniq', 'cut', 'tr'}
+# Second review 2026-11-01: text a shell still EXECUTES inside a text tool -- command substitution (backticks, $(...)),
+# process substitution, a /dev/tcp|udp redirect -- and the subcommands of git/gh/rg that run programs.
+TEXT_TOOL_EXECUTES = re.compile(r'`|\$\(|[<>]\(|/dev/(?:tcp|udp)/', re.I)
+TEXT_TOOL_SUBCOMMANDS = {'git': {'commit', 'log', 'show', 'diff', 'status', 'add', 'blame', 'grep'}, 'gh': {'pr', 'issue'}}
+RUNTIME_SENDER = re.compile(r'\b(?:curl|wget|invoke-restmethod|invoke-webrequest|irm|iwr|urlopen|urllib|httpx|aiohttp|'
+                            r'http\.client|httpconnection|webclient|httpclient|uploadstring|socket|requests\.\w+|'
+                            r'webrequest|tcpclient|http\.request|net\.http)\b|/dev/(?:tcp|udp)/'
+                            r'|\bfetch\s*\(|mcp__|' + RUNTIME_CALL_TOOL +
+                            # any client called with the tool as a keyword: invoke(tool_name='game', ...)
+                            r'|\b\w+\s*\([^()\r\n]{0,200}?\b(?:tool_?name|endpoint|tool)\s*=\s*[\"\']', re.I)
 
 
 def _spellings(path):
@@ -460,6 +502,9 @@ RUNNERS = re.compile(r'^(?:sh|bash|zsh|python\w*|py|node|perl|ruby|pwsh|powershe
 COMMUNICATION = ('request_user_input', 'send_message', 'web_search', 'Agent', 'Task', 'SendMessage',
                  'AskUserQuestion', 'WebSearch', 'TodoWrite', 'ScheduleWakeup', 'PushNotification',
                  'ExitPlanMode', 'EnterPlanMode')
+# Tools whose `command` is a shell command line (Codex's shell arrives as "Bash" too). Any other tool's input is also
+# judged as structured data, keys included (runtime_request in decide).
+SHELL_TOOLS = ('Bash', 'PowerShell', 'Monitor')
 NOT_ACTIONS = {'cd', 'pushd', 'popd', 'set-location', 'sl', 'chdir', 'git', 'echo', 'printf', 'write-output',
                'write-host', 'grep', 'rg', 'select-string', 'gh'}
 
@@ -1308,7 +1353,7 @@ def native_adapter_call(text, cwd, base):
         return decision('deny', reason='Native candidate refused: ' + str(exc))
 
 
-def invoked_scripts(text):
+def invoked_scripts(text, _depth=0):
     """Script files this command RUNS (not files it merely names, such as `git add x.py`), as regex tuples.
     The interpreter may be named by full path, quoted or not (C:/.../python.exe script.py). Two passes so the
     PowerShell call operator (& 'x.ps1') cannot swallow `&& python x.py` or `& "C:/.../python.exe" x.py`."""
@@ -1317,20 +1362,82 @@ def invoked_scripts(text):
                          r"(?:python\w*(?:\.\d+)?|py|bash|sh|pwsh|powershell|node)(?:\.exe)?[\"']?" + script_arg, text, re.I)
     invoked += re.findall(r"(?:^|[\s;|(])(?<!&)&(?!&)" + script_arg, text, re.I)
     invoked += re.findall(r"(?:^|[\s;&|(])()()(\.{0,2}/[^\s\"';|&]+\.(?:sh|py))\b", text)
+    # A script's SOURCE handed to an interpreter runs that script just the same: piped (`Get-Content x.ps1 | pwsh -`,
+    # `cat x.py | python -`), exec'd (`exec(open('x.py').read())`), evaluated (`iex (Get-Content x.ps1 -Raw)`) or
+    # dot-sourced (`. ./x.ps1`). Until 2026-11-01 only the helper-NAME rule caught these, and only for six names.
+    # a bare source never starts with '-', so flags and the path cannot trade characters (quadratic backtracking on
+    # `cat -a -a -a ...`, review 2026-11-01)
+    source = r"(?:'([^'\n]+)'|\"([^\"\n]+)\"|((?!-)[^\s\"';|&()]+))"
+    invoked += re.findall(r"(?:^|[\s;&|(])(?:get-content|gc|cat|type)(?:\s+-\w+)*\s+" + source +
+                          # within ONE command (no ; & or newline before the pipe), into a command-word interpreter;
+                          # replay 2026-11-01: `rg -n 'a|durable_python'` after `; Get-Content x.py` is not a pipe
+                          r"[^|;&\n]*\|\s*(?:&\s*)?(?:[^\s|;'\"]*[/\\])?(?:python\w*|py|bash|sh|pwsh|powershell|node)(?:\.exe)?(?![\w.-])",
+                          text, re.I)
+    invoked += re.findall(r"exec\s*\(\s*open\s*\(\s*" + source, text, re.I)
+    invoked += re.findall(r"(?:iex|invoke-expression)\s*\(?\s*(?:get-content|gc|cat|type)(?:\s+-\w+)*\s+" + source, text, re.I)
+    invoked += re.findall(r"(?:^|[;&|\n]\s*)\.\s+" + source, text, re.I)
+    # ripgrep's --pre runs its argument on every file it searches.
+    invoked += re.findall(r"(?:^|\s)--pre(?:=|\s+)" + source, text)
+    # An inline command (`pwsh -Command "& './x.ps1'"`, `bash -c '. ./x.sh'`) is captured whole above; the scripts it
+    # runs are found one level down.
+    if _depth < 1:
+        for token in list(invoked):
+            inner = next((v for v in token if v), '')
+            if re.search(r'\s', inner):
+                invoked += invoked_scripts(inner, _depth + 1)
     return invoked
 
 
-def helper_execution_text(text):
-    """Ignore standalone literal rg reads only for the known-helper heuristic.
+def only_text_tools(text):
+    """True only for ONE bare text-tool command (TEXT_TOOLS) that runs nothing: no shell composition at all outside
+    quotes (no & | ; < > or newline -- each review round found a new way a composed line hid a second program from the
+    segment splitter, so composition simply ends the exemption), no substitution anywhere, no leading VAR=..., git/gh
+    only as a plain listed subcommand without options that start programs, and no rg --pre."""
+    if TEXT_TOOL_EXECUTES.search(text):
+        return False
+    unquoted = re.sub(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"", '', text)
+    if re.search(r'[&|;<>\r\n]', unquoted.strip()):
+        return False
+    words = re.findall(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"|\S+", text.strip())
+    if not words or re.match(r'^[\w.-]+=', words[0]):
+        return False
+    name = re.sub(r'\.exe$', '', re.split(r'[/\\]', words[0].strip('\'"').lower())[-1])
+    args = [w.strip('\'"') for w in words[1:]]
+    if name not in TEXT_TOOLS:
+        return False
+    if name in TEXT_TOOL_SUBCOMMANDS:
+        if not args or args[0] not in TEXT_TOOL_SUBCOMMANDS[name]:
+            return False
+        if any(re.match(r'-(?:c\b|O|-open-files-in-pager|-ext-diff|-textconv|-exec|-config|-paginate|p\b)', a) for a in args):
+            return False
+    if name == 'rg' and any(a.startswith('--pre') for a in args):
+        return False
+    return True
 
-    No pipes, command substitutions, shell separators, redirects, continuations,
-    double-quoted interpolation or long options such as --pre are exempt. Other
-    save-location/source checks still receive the entire original command.
-    """
-    literal = r"(?:'[^'\r\n]*'|[A-Za-z0-9_./:\\-]+)"
-    reader = re.compile(r'\s*rg\s+-n(?:\s+' + literal + r')+\s*')
-    return '\n'.join('' if reader.fullmatch(line) and '--' not in line else line
-                     for line in text.splitlines())
+
+def runtime_request(text, need_target=True):
+    """True when `text` asks DevBench to save or load the game (see RUNTIME_PAIR). A command (need_target) made only of
+    text tools with no sender in it never counts (TEXT_TOOLS), and a function or console request counts only beside
+    DevBench context; an invoked
+    script's source counts without either, as the pre-2026-11-01 script check did. A game action counts only where a
+    request names the game tool (RUNTIME_TOOL or a tool/tool_name/endpoint/name pair), so a test fixture that lists a
+    request in order to check it is refused does not."""
+    # escaped quotes: JSON in a shell string (\") and PowerShell's backtick (`")
+    t = text.replace('\\"', '"').replace("\\'", "'").replace('`"', '"').replace("`'", "'")
+    if need_target and only_text_tools(text) and not RUNTIME_SENDER.search(t):
+        return False
+    pairs = [(m[1].lower(), m[2].strip().lower()) for m in RUNTIME_PAIR.finditer(t)]
+    pairs += [(m[1].lower(), m[2].strip().lower()) for m in RUNTIME_QUERY.finditer(t)]
+    named = {next(g for g in m.groups() if g).lower() for m in RUNTIME_TOOL.finditer(t)}
+    reach = not need_target or bool(named) or bool(RUNTIME_CONTEXT.search(t))
+    if reach and any(k == 'function' and v in RUNTIME_FUNCTIONS for k, v in pairs):
+        return True
+    if reach and any(k == 'command' and RUNTIME_CONSOLE.search(v) for k, v in pairs):
+        return True
+    aimed = 'game' in named or any(k in RUNTIME_TOOL_KEYS and v.rsplit('/', 1)[-1] == 'game' for k, v in pairs)
+    acted = (any(k == 'action' and v in RUNTIME_ACTIONS for k, v in pairs) or bool(RUNTIME_TOKEN.search(t))
+             or bool(RUNTIME_FILE_BODY.search(t)))
+    return aimed and acted
 
 
 def touches_save_location(text, cwd):
@@ -1493,10 +1600,10 @@ def decide(payload):
     protected = controlled_load_call(text, cwd, base)
     if protected is not None:
         return protected
-    runtime_save = (re.search(r'(?:/api/tool/game|\bgame\b).{0,100}(?:\bloadLast\b|\bsave\b|\bload\b)', text, re.I)
-                    or re.search(r'"function"\s*:\s*"(?:SaveGame|LoadGame|RequestSave|RequestAutoSave|QuitToMainMenu)"', text, re.I)
-                    or re.search(r'"command"\s*:\s*"\s*(?:save|load|savegame|loadgame|qsave|qload|coc\s+\S+\s*;\s*save)\b', text, re.I))
-    if runtime_save and re.search(r'devbench|localhost|127\.0\.0\.1|mcp__', text, re.I):
+    # A structured (MCP) call is judged with its keys: flattening above keeps only the values, which lost
+    # {action: save} on mcp__devbench-vr__game, and `command` on the console tool is a game command, not a shell one.
+    structured = None if isinstance(args, str) or tool in SHELL_TOOLS else tool + '\n' + json.dumps(args, default=str)
+    if runtime_request(text) or (structured is not None and runtime_request(structured)):
         return decision('deny', reason='Automated in-game save/load stays a one-interaction-at-a-time manual matter; blocked.')
     violation = folder_violation(text, cwd)
     if violation:
@@ -1530,12 +1637,6 @@ def decide(payload):
         originals = [record[k]['original'] for k in ('ess', 'skse') if record.get(k)]
         originals += [o for o in record.get('originals', []) if o not in originals]
         return change(originals, originals, 'restore', base)
-    # A filename in a standalone literal text search is not an invocation.
-    # Preserve the conservative heuristic for executable/uncertain occurrences,
-    # including interpreter stdin, inline code and piped source.
-    if HELPER.search(helper_execution_text(text)) and re.search(r'\b(?:python\w*|powershell|pwsh|bash)\b|^\s*&', text, re.I):
-        return decision('needs_set', op=op if op in WRITE_OPS else 'write', set=None,
-                        why='A save isolation/restoration helper acts on saves the hook cannot count.', **base)
     paths, problem = paths_in(text, cwd)
     # Known save tools on literally named files: judged by their own documented op list.
     tool_call = re.search(r'(resaver-cli|cosave-cli)\.sh\b\s+(\S+)?', text, re.I)
@@ -1579,7 +1680,7 @@ def decide(payload):
         except (OSError, UnicodeError):
             continue
         code = without_output_text(source)
-        if RUNTIME_CALL.search(code):
+        if runtime_request(code, need_target=False):
             return decision('needs_set', op='write', set=None,
                             why='An invoked script drives in-game save/load through DevBench.', **base)
         # A script that can write counts when its code spells a save LOCATION, or when this command hands it one.
