@@ -66,7 +66,7 @@
     },
     {
       "path": "inputs/.claude/hooks/save-access-entry.template.ps1",
-      "sha256": "5c57a7c95c74d7e6fe6b10ac939306872e4894923d020448a4a837072df6f5e4"
+      "sha256": "87d8b353e9925df540915d1f8a59135ee4a3d991cb4803cebda3f2f0445ca70f"
     },
     {
       "path": "inputs/.claude/hooks/render_wrapper.py",
@@ -74,7 +74,7 @@
     },
     {
       "path": "inputs/.claude/hooks/test_save_access_entry.py",
-      "sha256": "6de059212e955bd653e3604628171a061d64c78fc40240d9296ebe9445bb8ac7"
+      "sha256": "07854e829b8f81e259ddf5eed3c4afd67796cfdce8073da8ac21aeb50a1b64eb"
     },
     {
       "path": "inputs/.claude/hooks/save-sentinel.py",

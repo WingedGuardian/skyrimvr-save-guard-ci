@@ -39,7 +39,11 @@ try {
         $stage = 'stdin'
         # Up to 8 s for the child to accept its input: interpreter start plus importing the guard, which exceeds
         # 2 s only when the machine is paging.
-        $write = $child.StandardInput.WriteAsync($inputJson)
+        # Explicit UTF-8 WITHOUT a byte-order mark. .NET Framework encodes StandardInput with Console.InputEncoding;
+        # on a UTF-8 (65001) console that encoding emits a BOM, and the guard's json.load() then refuses every
+        # payload as malformed (seen on the CI runner 2026-11-03; this machine's OEM console hid it).
+        $payloadBytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($inputJson)
+        $write = $child.StandardInput.BaseStream.WriteAsync($payloadBytes, 0, $payloadBytes.Length)
         if (-not $write.Wait([Math]::Min(8000, (Remaining)))) { throw 'Save guard input timed out (interpreter slow to start; machine under load?).' }
         $child.StandardInput.Close()
         $stage = 'exit'

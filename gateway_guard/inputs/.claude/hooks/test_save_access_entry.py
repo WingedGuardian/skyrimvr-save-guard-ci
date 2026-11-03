@@ -43,7 +43,17 @@ FAKE = {
     # ...and one that puts the payload's command where the parser reports it as an unquoted "primitive": PowerShell
     # 5.1 builds differ in whether the object-parse error embeds the whole input (Windows 11 does, the CI runner's
     # Server build says only "Invalid JSON primitive: ."), but both name a bare token in full
-    'echo_primitive': "import json, sys\nd = sys.stdin.read()\nprint('{\"echo\": ' + json.loads(d)['tool_input']['command'] + '}')\n",
+    'echo_primitive': ("import json, sys\nraw = sys.stdin.buffer.read()\n"
+                       "try:\n    d = json.loads(raw.decode('utf-8-sig'))\n"
+                       "except Exception as exc:\n    sys.stderr.write('STDIN NOT JSON: %r first bytes %r\\n' % (exc, raw[:40])); sys.exit(1)\n"
+                       "print('{\"echo\": ' + d['tool_input']['command'] + '}')\n"),
+    # the real guard does json.load(sys.stdin): a BOM or any non-JSON prefix in what the wrapper writes makes it deny
+    # every call as malformed; this fake fails the same way and reports the first bytes it saw
+    'strict_json': ("import json, sys\nraw = sys.stdin.buffer.read()\n"
+                    "try:\n    d = json.loads(raw.decode('utf-8'))\n"
+                    "except Exception as exc:\n    sys.stderr.write('STDIN NOT JSON: %r first bytes %r\\n' % (exc, raw[:40])); sys.exit(1)\n"
+                    "print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',"
+                    " 'permissionDecisionReason': 'parsed ' + d['tool_name']}}))\n"),
     'badjson_70k': "import sys\nsys.stdin.read()\nprint('{' + 'x' * 70000)\n",
 }
 PAYLOAD_MARKER = b'PAYLOAD-SECRET-7f3a'
@@ -184,6 +194,13 @@ class WrapperCases(unittest.TestCase):
         self.assertEqual(0, rc)
         self.assertIn('(output-json: ', deny_reason(out))
 
+    def test_10_stdin_reaches_the_guard_as_plain_utf8_json(self):
+        """The guard must be able to json.load() exactly what the wrapper writes, on every console encoding: no BOM,
+        no transcoding. Red on a UTF-8-console machine (the CI runner) before the explicit-bytes write."""
+        _, rc, out, _ = self.harness('strict_json').run(MARKED_PAYLOAD)
+        self.assertEqual(0, rc)
+        self.assertEqual('parsed Bash', deny_reason(out), 'the guard did not receive clean JSON: ' + out[:400])
+
     def test_9_missing_interpreter_denies_naming_start(self):
         broken = render_wrapper.render(TEMPLATE.read_text(encoding='utf-8'), 'C:/no/such/python-3.99.exe')
         _, rc, out, _ = self.harness('allow', text=broken).run()
@@ -266,6 +283,15 @@ class WrapperMutationTwins(unittest.TestCase):
         wall, _, out, _ = h.run()
         self.assertIn('(exit: ', deny_reason(out))
         self.assertGreaterEqual(wall, DEADLINE, 'mutant survived: without the start-time anchor the wall still fit the budget')
+
+    def test_writing_stdin_with_a_bom_encoding_breaks_case_10(self):
+        """Twin for the explicit-bytes write: a BOM-emitting encoding (what a UTF-8 console gives StandardInput on
+        .NET Framework) must turn case 10 red everywhere, not only on the CI runner."""
+        m = mutate(self.template, "(New-Object System.Text.UTF8Encoding($false)).GetBytes($inputJson)",
+                   "(New-Object System.Text.UTF8Encoding($true)).GetPreamble() + (New-Object System.Text.UTF8Encoding($true)).GetBytes($inputJson)")
+        _, _, out, _ = self.run_case(render_wrapper.render(m, sys.executable), 'strict_json', payload=MARKED_PAYLOAD)
+        self.assertIn('(exitcode: ', deny_reason(out), 'mutant survived: a BOM before the payload did not break the strict guard')
+        self.assertIn('STDIN NOT JSON', out)
 
     def test_dropping_json_validation_breaks_case_8(self):
         m = mutate(self.template, '        $null = "$result" | ConvertFrom-Json -ErrorAction Stop\n', "")
