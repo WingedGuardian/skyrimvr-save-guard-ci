@@ -1,17 +1,98 @@
 --- a/protect-save-access.py
 +++ b/protect-save-access.py
-@@ -357,9 +357,81 @@
+@@ -357,9 +357,176 @@
                                                                                                         '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/reference_adapter.py': '9bb7f88bc380d6b416bfeab26f357e53c38eaea7b0836c960b5594e1db310201'}}}
  
  
 -def read_only_script_call(script, raw, text, cwd='.'):
 +# Exact reviewed inert commands only. Populated after dependency qualification.
-+REVIEWED_INERT_FIXTURES = {}
++REVIEWED_INERT_FIXTURES = {
++    '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py': {   'cache_tag': 'cpython-310',
++        'commands': {   'Bash': '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s -S -B '
++                                '"{HOME}/.claude/tools/resource-budget/rb.py" run --policy headroom --name '
++                                'delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 --priority '
++                                'below_normal --wait-until-fits 2 -- '
++                                '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s -S -B '
++                                '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"',
++                        'PowerShell': '& "{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s '
++                                      '-S -B "{HOME}/.claude/tools/resource-budget/rb.py" run --policy '
++                                      'headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 '
++                                      '--priority below_normal --wait-until-fits 2 -- '
++                                      '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s -S '
++                                      '-B '
++                                      '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"',
++                        'exec_command': '& "{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E '
++                                        '-s -S -B "{HOME}/.claude/tools/resource-budget/rb.py" run --policy '
++                                        'headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk '
++                                        'C=0.01 --priority below_normal --wait-until-fits 2 -- '
++                                        '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s '
++                                        '-S -B '
++                                        '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"',
++                        'functions.exec_command': '& '
++                                                  '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" '
++                                                  '-E -s -S -B "{HOME}/.claude/tools/resource-budget/rb.py" '
++                                                  'run --policy headroom --name delirium-owner-quit --cpu 5 '
++                                                  '--ram 0.5 --disk C=0.01 --priority below_normal '
++                                                  '--wait-until-fits 2 -- '
++                                                  '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" '
++                                                  '-E -s -S -B '
++                                                  '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"'},
++        'dependencies': {   '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/binding.py': 'b325e3cb1921357426aacba4b021cf0f421365b353cf97be8da298602e59a517',
++                            '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/owner_quit.py': 'bdccf71f505830e48797b61a99df07ff4574a6d2557f44208ecbae4568f9aefd',
++                            '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/shutdown_recovery.py': 'be6dd42d22c9c934c50afbf34d707b22f461d3db38c9aea69050baa0f11e4abd',
++                            '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/startup_handoff.py': 'b274e8d3f5e713ce54e54d2a0083b51c453884c5d845b49f1275193b2bdd0a25',
++                            '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/windows_identity.py': '9ca82e5170a64cd5d10d709d4635464cf4544dad0bfbd8b1fb5036b8c574092a',
++                            'tools/__pycache__/vr-headless.cpython-310.pyc': '1b4863ef8c7dfee55338126d8a29cd033055b323220e4120447c80af3bbcbcfe',
++                            'tools/vr-headless.py': 'c00fda353828460b09b177adc924d4bc7995562d81d34856abfdb169f036618a'},
++        'dependency_closure_complete': True,
++        'home_dependencies': {   '.claude/tools/resource-budget/rb.py': '00ffd3c56aa4a810fe5b26ed0d17aaa06aa8724ec229799c795ec8baa72c8030',
++                                 '.claude/tools/resource-budget/rblib/__init__.py': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/__init__.cpython-310.pyc': '65f3bdca9f566475d6695c07bd13f0ce48594a7d141e3181e3af0c5a2b59bd57',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/budget.cpython-310.pyc': '86fa382995e63563c4f97508e8dfa2fd4e67e3f5d9f6e5303042e591af9221b7',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/config.cpython-310.pyc': 'cab81ff0a7fd18ecb6605511e1fffabdb5aab99750358673c3d70530128bbea4',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/costs.cpython-310.pyc': 'ff26109c6739b546fa105fb4f835aebbbfa15ff2a0411111202879b97dbf0517',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/diskio.cpython-310.pyc': '5564737463a3f548aed2bcd164bc28aa0213397aa14b3b3f483b8b8507fa1347',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/filelock.cpython-310.pyc': '799d0303f4b2fafe321ebd9728c4b6949c098b0d07d7dc2652316bf45872b820',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/guard.cpython-310.pyc': '609baa1cfd51b12f25110ea794a9df925700813779c9b533fc576cae5d5458f2',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/launcher.cpython-310.pyc': '4c34e1866ebeadd2920b69feafb629172a823e9ca066a4216ea93176aae92070',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/ledger.cpython-310.pyc': '58f73d676bcc8ed312c810ad06c8ef0e0b3170a127557b7b5f58e9a8ee24d7cb',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/policy.cpython-310.pyc': 'c15c455a7992190952b4828506473e855ec596b15b8224047e32f4c7947b26bc',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/probes.cpython-310.pyc': 'f265d2e0f197ece997c0c58e247786e07df5705fba083f553af254e4d72ba247',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/procs.cpython-310.pyc': '35cab5bb423d30795043314db2ea16750a8f552730eeaeb48b9e2b8bdf988afd',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/watchdog.cpython-310.pyc': '8e62723f6d13f091a9e459056ad0e846772fca2e7c548cf2acba1ecfeae04ce3',
++                                 '.claude/tools/resource-budget/rblib/__pycache__/winjob.cpython-310.pyc': 'dd280c546c774fb9214069d95d6116f193ec81b551d149f3c72bcc73e448f35a',
++                                 '.claude/tools/resource-budget/rblib/budget.py': 'efdf6a287cd39a67c5f25945ef09ef2a93b8390c0194d870ce4e2cea14c9aeb5',
++                                 '.claude/tools/resource-budget/rblib/config.py': '6cd2f7c2746c452e26f1f94e3d96fe473fd75801bb8584fee4939d38c964d4bb',
++                                 '.claude/tools/resource-budget/rblib/costs.py': '6aa1175f10d425bdf98ae0ab9244fe9934f432e27ac074ce38a95785d473d097',
++                                 '.claude/tools/resource-budget/rblib/diskio.py': '3ae6b62cc0864a9d5af9153a41b6402d6249311f650bff66935f300ee7c13842',
++                                 '.claude/tools/resource-budget/rblib/filelock.py': 'b69b2ad7f312b295540845222965a882bc0c53cef65b12c63101b73923d7e69c',
++                                 '.claude/tools/resource-budget/rblib/guard.py': '9100588c7f2c203d00c40ab74511999e8c6bcf1f328945b5bc1e3f6eab5420ea',
++                                 '.claude/tools/resource-budget/rblib/launcher.py': '45f069b85203ec2d5c6b9c2dcb2542116543c2d0a07b50fc42355c2547f93a15',
++                                 '.claude/tools/resource-budget/rblib/ledger.py': 'cd964f93a966680601a86a378f75506515d421158166a46c9de8688df8e69a09',
++                                 '.claude/tools/resource-budget/rblib/policy.py': 'c99b7c533af4819dd573d2fd7a5068c5f667ef93ede61c03514ed6f0074422ff',
++                                 '.claude/tools/resource-budget/rblib/posixjob.py': 'ab89b6ad44d0057f1addd77c737587adbb4d17a82c85f4bb5417cba0737c0e56',
++                                 '.claude/tools/resource-budget/rblib/probes.py': '95713764f458f6e9ea2a9379c2a7607d255bf600e41a81d41825ab83fc15cd5c',
++                                 '.claude/tools/resource-budget/rblib/procs.py': '69d1db04c004a75eddd3dbc3d49605845177d529ea31198b1a5d185695a498b8',
++                                 '.claude/tools/resource-budget/rblib/watchdog.py': '7e73809e3a627fdaa17335cede086c74d4293c0ff4452e4cc5fe02be0e7fbfd7',
++                                 '.claude/tools/resource-budget/rblib/winjob.py': '6d1b86c01013ec70815a5a25811754cb5c665928735bff367613965bae51096a',
++                                 'AppData/Local/Programs/Python/Python310/python.exe': '47942e1f899c5b0ccd23ba0730adbbc979b1488e0f2e5274abf398360877b7ec',
++                                 'AppData/Local/Programs/Python/Python310/python3.dll': '73b0f3952be222ce676672603ae3848ee6e8e479782bd06745116712a4834c53',
++                                 'AppData/Local/Programs/Python/Python310/python310.dll': '2bf761bae584ba67d9a41507b45ebd41ab6ae51755b1782496d0bc60cc1d41d5',
++                                 'AppData/Local/Programs/Python/Python310/vcruntime140.dll': '9d2b40f0395cc5d1b4d5ea17b84970c29971d448c37104676db577586d4ad1b1',
++                                 'AppData/Local/Programs/Python/Python310/vcruntime140_1.dll': '34048abaa070ecc13b318cea31425f4ca3edd133d350318ac65259e6058c8b32'},
++        'sha256': '9d273caf375793ed2c2c9a4eec96d26e72757d5251bf0140610f60f9d62f71a9',
++        'tools': ['Bash', 'PowerShell', 'exec_command', 'functions.exec_command']}
++}
 +
 +
 +def reviewed_inert_fixture_call(script, raw, text, cwd, tool):
 +    """One source-qualified command envelope; never a generic test exemption."""
 +    if type(REVIEWED_INERT_FIXTURES) is not dict or not REVIEWED_INERT_FIXTURES:
++        return False
++    try:
++        if script.absolute().relative_to(ROOT.absolute()).as_posix() not in REVIEWED_INERT_FIXTURES:
++            return False
++    except (OSError, ValueError):
 +        return False
 +    started = time.monotonic()
 +    def plain(path):
@@ -27,7 +108,11 @@
 +    def digest(value):
 +        return type(value) is str and re.fullmatch('[0-9a-f]{64}', value) is not None
 +    try:
++        if os.environ.get('RB_HOME') or (Path.home() / '.claude/tools/resource-budget/config.json').exists():
++            return False
 +        originals = (ROOT.absolute(), Path(cwd).absolute(), script.absolute(), Path.home().absolute())
++        if any(any(character in str(path) for character in ('$', '`', '"', '\r', '\n')) for path in originals):
++            return False
 +        if not all(plain(path) for path in originals):
 +            return False
 +        root, current, resolved, home_root = (path.resolve(strict=True) for path in originals)
@@ -35,14 +120,16 @@
 +            return False
 +        relative = resolved.relative_to(root).as_posix()
 +        spec = REVIEWED_INERT_FIXTURES.get(relative)
-+        keys = {'sha256', 'command_sha256', 'tools', 'dependencies', 'home_dependencies', 'dependency_closure_complete'}
++        keys = {'sha256', 'commands', 'tools', 'dependencies', 'home_dependencies', 'dependency_closure_complete', 'cache_tag'}
 +        if type(spec) is not dict or set(spec) != keys or spec['dependency_closure_complete'] is not True:
++            return False
++        if spec['cache_tag'] != sys.implementation.cache_tag:
 +            return False
 +        if type(spec['tools']) is not list or not spec['tools'] or not all(type(t) is str for t in spec['tools']) or tool not in spec['tools']:
 +            return False
-+        if not digest(spec['sha256']) or not digest(spec['command_sha256']):
++        if not digest(spec['sha256']) or type(spec['commands']) is not dict or set(spec['commands']) != set(spec['tools']) or not all(type(c) is str for c in spec['commands'].values()):
 +            return False
-+        if hashlib.sha256(text.encode('utf-8')).hexdigest() != spec['command_sha256']:
++        if text != spec['commands'][tool].replace('{ROOT}', root.as_posix()).replace('{HOME}', home_root.as_posix()):
 +            return False
 +        paths = [(resolved, spec['sha256'])]
 +        for base, entries, maximum in ((root, spec['dependencies'], 16), (home_root, spec['home_dependencies'], 64)):
@@ -57,14 +144,22 @@
 +                if not plain(path) or path.resolve(strict=True) != path or not path.is_relative_to(base):
 +                    return False
 +                paths.append((path, expected))
++        expected_paths = {path for path, expected in paths}
++        for source, expected in paths:
++            if source.suffix != '.py':
++                continue
++            for suffix in ('.pyc', '.opt-1.pyc', '.opt-2.pyc'):
++                cache = source.parent / '__pycache__' / (source.stem + '.' + spec['cache_tag'] + suffix)
++                if os.path.lexists(cache) and cache not in expected_paths:
++                    return False
 +        total = 0
 +        for path, expected in paths:
 +            if time.monotonic() - started > 2.0:
 +                return False
 +            info = path.stat()
-+            remaining = 2097152 - total
++            remaining = 8388608 - total
 +            total += info.st_size
-+            if info.st_mode & 0o170000 != 0o100000 or info.st_nlink != 1 or total > 2097152:
++            if info.st_mode & 0o170000 != 0o100000 or info.st_nlink != 1 or total > 8388608:
 +                return False
 +            with path.open('rb') as stream:
 +                data = stream.read(remaining + 1)
@@ -83,7 +178,7 @@
      try:
          rel = script.resolve().relative_to(ROOT).as_posix()
      except (OSError, ValueError):
-@@ -2396,7 +2468,7 @@
+@@ -2396,7 +2563,7 @@
              script = Path(script_dir) / raw
          if script.absolute() == Path(__file__).absolute() and text.rstrip().endswith('--self-test'):
              continue

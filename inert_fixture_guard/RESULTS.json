@@ -1,0 +1,61 @@
+{
+  "state": "Local post-review offline qualification passed; exact-commit public CI and deployment gates remain",
+  "date": "2026-11-07",
+  "candidate_sha256": "dd7aac831c9a82d38f47eb81abac4434d19b6c2dd578a30dc6fa25c72f6f464c",
+  "test_source_sha256": "99496233d870080a7eba8bcdff8b5d78955bed6d0e4f3dc6996abb88d616fdf1",
+  "local_exit_code": 0,
+  "new_classifier_methods": 19,
+  "broad_methods": 178,
+  "broad_failures": 0,
+  "broad_errors": 0,
+  "broad_skips": 0,
+  "broad_seconds": 245.286,
+  "retained_legacy_functional_pin_methods": 7,
+  "wrapper_cases": 28,
+  "sentinel_methods": 14,
+  "sentinel_mutation_twins_killed": 4,
+  "sentinel_mutation_twins_total": 4,
+  "packet_manifest_unchanged": true,
+  "private_external_bytes_exercised_by_CI": false,
+  "real_local_dependency_readback": {
+    "files": 43,
+    "all_four_tool_forms": "allow",
+    "old_live_fixture": "needs_set",
+    "seconds": 0.516,
+    "read_only_classifier": true
+  },
+  "prior_attempts": [
+    {
+      "methods": 167,
+      "errors": 3,
+      "cause": "Harness restore-helper reference missing",
+      "accepted": false
+    },
+    {
+      "new_methods": 18,
+      "broad_methods": 177,
+      "broad_errors": 1,
+      "cause": "Whole harness incorrectly launched with -S; locked YAML dependency unavailable",
+      "accepted": false
+    },
+    {
+      "launched": false,
+      "cause": "Resource RAM admission WAIT",
+      "accepted": false
+    }
+  ],
+  "review": {
+    "independent_source_clearance": true,
+    "scope": "offline qualification; exact committed readback pending"
+  },
+  "installed_guard_changed": false,
+  "live_fixture_changed": false,
+  "blocked_fixture_executed": false,
+  "actual_host_hook_acceptance": false,
+  "native_acceptance": false,
+  "game_calls": 0,
+  "provider_calls": 0,
+  "public_push": false,
+  "CI_dispatched": false,
+  "note": "This later results receipt supersedes the historical DRAFT-STATUS checkpoint. Public tests substitute authored external bytes; hashes and local readback do not establish a sandbox."
+}

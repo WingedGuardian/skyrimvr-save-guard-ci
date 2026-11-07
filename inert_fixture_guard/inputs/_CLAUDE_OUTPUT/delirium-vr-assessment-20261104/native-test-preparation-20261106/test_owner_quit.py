@@ -14,7 +14,7 @@ SETTLED=[]
 def target():
     folder=RUN/uuid.uuid4().hex;folder.mkdir()
     session=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
-    p=subprocess.Popen([sys.executable,'-B','-c','import sys;sys.stdin.buffer.read()'],cwd=folder,stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW)
+    p=subprocess.Popen([sys.executable,'-E','-s','-S','-B','-c','import sys;sys.stdin.buffer.read()'],cwd=folder,stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW)
     lease=None;authority=None
     try:
         lease=ProcessLease(p.pid);identity=lease.inspect()

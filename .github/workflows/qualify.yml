@@ -33,3 +33,5 @@ jobs:
           python -m pip install --only-binary=:all: --require-hashes -r requirements.lock
       - name: Exact packet policy and preservation checks
         run: python gateway_guard/qualify.py
+      - name: Reviewed inert fixture candidate and existing policy regressions
+        run: python -B inert_fixture_guard/qualify.py

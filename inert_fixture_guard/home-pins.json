@@ -1,0 +1,181 @@
+{
+  "home_dependencies": {
+    ".claude/tools/resource-budget/rb.py": "00ffd3c56aa4a810fe5b26ed0d17aaa06aa8724ec229799c795ec8baa72c8030",
+    ".claude/tools/resource-budget/rblib/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".claude/tools/resource-budget/rblib/budget.py": "efdf6a287cd39a67c5f25945ef09ef2a93b8390c0194d870ce4e2cea14c9aeb5",
+    ".claude/tools/resource-budget/rblib/config.py": "6cd2f7c2746c452e26f1f94e3d96fe473fd75801bb8584fee4939d38c964d4bb",
+    ".claude/tools/resource-budget/rblib/costs.py": "6aa1175f10d425bdf98ae0ab9244fe9934f432e27ac074ce38a95785d473d097",
+    ".claude/tools/resource-budget/rblib/diskio.py": "3ae6b62cc0864a9d5af9153a41b6402d6249311f650bff66935f300ee7c13842",
+    ".claude/tools/resource-budget/rblib/filelock.py": "b69b2ad7f312b295540845222965a882bc0c53cef65b12c63101b73923d7e69c",
+    ".claude/tools/resource-budget/rblib/guard.py": "9100588c7f2c203d00c40ab74511999e8c6bcf1f328945b5bc1e3f6eab5420ea",
+    ".claude/tools/resource-budget/rblib/launcher.py": "45f069b85203ec2d5c6b9c2dcb2542116543c2d0a07b50fc42355c2547f93a15",
+    ".claude/tools/resource-budget/rblib/ledger.py": "cd964f93a966680601a86a378f75506515d421158166a46c9de8688df8e69a09",
+    ".claude/tools/resource-budget/rblib/policy.py": "c99b7c533af4819dd573d2fd7a5068c5f667ef93ede61c03514ed6f0074422ff",
+    ".claude/tools/resource-budget/rblib/posixjob.py": "ab89b6ad44d0057f1addd77c737587adbb4d17a82c85f4bb5417cba0737c0e56",
+    ".claude/tools/resource-budget/rblib/probes.py": "95713764f458f6e9ea2a9379c2a7607d255bf600e41a81d41825ab83fc15cd5c",
+    ".claude/tools/resource-budget/rblib/procs.py": "69d1db04c004a75eddd3dbc3d49605845177d529ea31198b1a5d185695a498b8",
+    ".claude/tools/resource-budget/rblib/watchdog.py": "7e73809e3a627fdaa17335cede086c74d4293c0ff4452e4cc5fe02be0e7fbfd7",
+    ".claude/tools/resource-budget/rblib/winjob.py": "6d1b86c01013ec70815a5a25811754cb5c665928735bff367613965bae51096a",
+    "AppData/Local/Programs/Python/Python310/python.exe": "47942e1f899c5b0ccd23ba0730adbbc979b1488e0f2e5274abf398360877b7ec",
+    "AppData/Local/Programs/Python/Python310/python3.dll": "73b0f3952be222ce676672603ae3848ee6e8e479782bd06745116712a4834c53",
+    "AppData/Local/Programs/Python/Python310/python310.dll": "2bf761bae584ba67d9a41507b45ebd41ab6ae51755b1782496d0bc60cc1d41d5",
+    "AppData/Local/Programs/Python/Python310/vcruntime140.dll": "9d2b40f0395cc5d1b4d5ea17b84970c29971d448c37104676db577586d4ad1b1",
+    "AppData/Local/Programs/Python/Python310/vcruntime140_1.dll": "34048abaa070ecc13b318cea31425f4ca3edd133d350318ac65259e6058c8b32"
+  },
+  "imports": {
+    ".claude/tools/resource-budget/rb.py": [
+      "__future__",
+      "argparse",
+      "os",
+      "rblib",
+      "rblib.config",
+      "rblib.costs",
+      "rblib.ledger",
+      "rblib.policy",
+      "sys",
+      "time"
+    ],
+    ".claude/tools/resource-budget/rblib/__init__.py": [],
+    ".claude/tools/resource-budget/rblib/budget.py": [
+      "__future__",
+      "dataclasses"
+    ],
+    ".claude/tools/resource-budget/rblib/config.py": [
+      "__future__",
+      "copy",
+      "json",
+      "os"
+    ],
+    ".claude/tools/resource-budget/rblib/costs.py": [
+      ".",
+      ".budget",
+      "__future__",
+      "datetime",
+      "json",
+      "math",
+      "os"
+    ],
+    ".claude/tools/resource-budget/rblib/diskio.py": [
+      "ctypes",
+      "sys"
+    ],
+    ".claude/tools/resource-budget/rblib/filelock.py": [
+      "__future__",
+      "contextlib",
+      "fcntl",
+      "json",
+      "msvcrt",
+      "os",
+      "sys",
+      "time"
+    ],
+    ".claude/tools/resource-budget/rblib/guard.py": [
+      ".",
+      ".filelock",
+      ".policy",
+      ".procs",
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "fcntl",
+      "glob",
+      "json",
+      "msvcrt",
+      "os",
+      "subprocess",
+      "sys",
+      "time",
+      "traceback"
+    ],
+    ".claude/tools/resource-budget/rblib/launcher.py": [
+      ".",
+      ".budget",
+      ".diskio",
+      ".filelock",
+      ".guard",
+      ".ledger",
+      ".policy",
+      ".posixjob",
+      ".watchdog",
+      ".winjob",
+      "__future__",
+      "math",
+      "os",
+      "sys",
+      "tempfile",
+      "time"
+    ],
+    ".claude/tools/resource-budget/rblib/ledger.py": [
+      ".",
+      "__future__",
+      "datetime",
+      "json",
+      "os",
+      "uuid"
+    ],
+    ".claude/tools/resource-budget/rblib/policy.py": [
+      ".budget",
+      "datetime",
+      "os"
+    ],
+    ".claude/tools/resource-budget/rblib/posixjob.py": [
+      "__future__",
+      "os",
+      "resource",
+      "shutil",
+      "signal",
+      "subprocess",
+      "time",
+      "uuid"
+    ],
+    ".claude/tools/resource-budget/rblib/probes.py": [
+      ".budget",
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "json",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "time"
+    ],
+    ".claude/tools/resource-budget/rblib/procs.py": [
+      "__future__",
+      "ctypes",
+      "os",
+      "sys"
+    ],
+    ".claude/tools/resource-budget/rblib/watchdog.py": [
+      "__future__"
+    ],
+    ".claude/tools/resource-budget/rblib/winjob.py": [
+      "__future__",
+      "ctypes",
+      "subprocess"
+    ]
+  },
+  "total_bytes": 4897765,
+  "interpreter": "AppData/Local/Programs/Python/Python310/python.exe",
+  "RB_HOME_present": false,
+  "config_present": false,
+  "source_executed": false,
+  "runtime_libraries": {
+    "AppData/Local/Programs/Python/Python310/python3.dll": {
+      "sha256": "73b0f3952be222ce676672603ae3848ee6e8e479782bd06745116712a4834c53",
+      "bytes": 66328
+    },
+    "AppData/Local/Programs/Python/Python310/python310.dll": {
+      "sha256": "2bf761bae584ba67d9a41507b45ebd41ab6ae51755b1782496d0bc60cc1d41d5",
+      "bytes": 4462360
+    },
+    "AppData/Local/Programs/Python/Python310/vcruntime140.dll": {
+      "sha256": "9d2b40f0395cc5d1b4d5ea17b84970c29971d448c37104676db577586d4ad1b1",
+      "bytes": 98224
+    },
+    "AppData/Local/Programs/Python/Python310/vcruntime140_1.dll": {
+      "sha256": "34048abaa070ecc13b318cea31425f4ca3edd133d350318ac65259e6058c8b32",
+      "bytes": 37256
+    }
+  }
+}

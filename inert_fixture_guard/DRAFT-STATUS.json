@@ -1,12 +1,8 @@
 {
-  "state": "INCOMPLETE INACTIVE DRAFT",
-  "production_exception_entries": 0,
-  "classifier_tests_prepared": 8,
-  "classifier_tests_run": 0,
-  "admission": "WAIT: RAM below active-game threshold, bounded wait expired",
-  "wrapper_dependency_inspection": "Stopped after guard refusal; user scoped read-only inspection choice pending",
-  "ci": "New packet not wired or dispatched; existing gateway CI does not qualify candidate",
-  "push": false,
-  "deploy": false,
-  "installed_guard_sha256": "fe1005c4bab628ec5c35f93e9d180a635bf12a6cd99187284fde2b56564a7ed4"
+  "state": "Prepared isolated candidate; final review and post-review execution pending",
+  "production_exception_entries": 1,
+  "installed_guard_changed": false,
+  "blocked_suite_executed": false,
+  "public_push": false,
+  "CI_dispatched": false
 }

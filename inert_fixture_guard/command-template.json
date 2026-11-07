@@ -1,0 +1,13 @@
+{
+  "script": "_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py",
+  "external_source_bytes": 4897765,
+  "project_bytes": 78930,
+  "commands": {
+    "Bash": "\"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{HOME}/.claude/tools/resource-budget/rb.py\" run --policy headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 --priority below_normal --wait-until-fits 2 -- \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py\"",
+    "PowerShell": "& \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{HOME}/.claude/tools/resource-budget/rb.py\" run --policy headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 --priority below_normal --wait-until-fits 2 -- \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py\"",
+    "exec_command": "& \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{HOME}/.claude/tools/resource-budget/rb.py\" run --policy headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 --priority below_normal --wait-until-fits 2 -- \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py\"",
+    "functions.exec_command": "& \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{HOME}/.claude/tools/resource-budget/rb.py\" run --policy headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 --priority below_normal --wait-until-fits 2 -- \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py\""
+  },
+  "cache_bytes": 137688,
+  "cache_tag": "cpython-310"
+}

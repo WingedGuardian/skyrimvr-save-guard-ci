@@ -1,0 +1,145 @@
+{
+  "read_only": true,
+  "code_executed": false,
+  "cache_tag": "cpython-310",
+  "caches": [
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/__init__.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "65f3bdca9f566475d6695c07bd13f0ce48594a7d141e3181e3af0c5a2b59bd57",
+      "bytes": 155,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/budget.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "86fa382995e63563c4f97508e8dfa2fd4e67e3f5d9f6e5303042e591af9221b7",
+      "bytes": 7823,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/config.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "cab81ff0a7fd18ecb6605511e1fffabdb5aab99750358673c3d70530128bbea4",
+      "bytes": 2971,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/costs.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "ff26109c6739b546fa105fb4f835aebbbfa15ff2a0411111202879b97dbf0517",
+      "bytes": 5157,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/diskio.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "5564737463a3f548aed2bcd164bc28aa0213397aa14b3b3f483b8b8507fa1347",
+      "bytes": 2481,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/filelock.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "799d0303f4b2fafe321ebd9728c4b6949c098b0d07d7dc2652316bf45872b820",
+      "bytes": 2318,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/guard.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "609baa1cfd51b12f25110ea794a9df925700813779c9b533fc576cae5d5458f2",
+      "bytes": 27727,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/launcher.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "4c34e1866ebeadd2920b69feafb629172a823e9ca066a4216ea93176aae92070",
+      "bytes": 15838,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/ledger.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "58f73d676bcc8ed312c810ad06c8ef0e0b3170a127557b7b5f58e9a8ee24d7cb",
+      "bytes": 6048,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/policy.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "c15c455a7992190952b4828506473e855ec596b15b8224047e32f4c7947b26bc",
+      "bytes": 7364,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/probes.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "f265d2e0f197ece997c0c58e247786e07df5705fba083f553af254e4d72ba247",
+      "bytes": 11842,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/procs.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "35cab5bb423d30795043314db2ea16750a8f552730eeaeb48b9e2b8bdf988afd",
+      "bytes": 2644,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/watchdog.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "8e62723f6d13f091a9e459056ad0e846772fca2e7c548cf2acba1ecfeae04ce3",
+      "bytes": 4625,
+      "source_equivalent": true
+    },
+    {
+      "path": ".claude/tools/resource-budget/rblib/__pycache__/winjob.cpython-310.pyc",
+      "domain": "home",
+      "sha256": "dd280c546c774fb9214069d95d6116f193ec81b551d149f3c72bcc73e448f35a",
+      "bytes": 11115,
+      "source_equivalent": true
+    },
+    {
+      "path": "tools/__pycache__/vr-headless.cpython-310.pyc",
+      "domain": "project",
+      "sha256": "1b4863ef8c7dfee55338126d8a29cd033055b323220e4120447c80af3bbcbcfe",
+      "bytes": 29580,
+      "source_equivalent": true
+    }
+  ],
+  "count": 15,
+  "total_bytes": 137688,
+  "other_tags_not_eligible": [
+    "rb.cpython-313.pyc",
+    "__init__.cpython-312.pyc",
+    "__init__.cpython-313.pyc",
+    "budget.cpython-312.pyc",
+    "budget.cpython-313.pyc",
+    "config.cpython-312.pyc",
+    "config.cpython-313.pyc",
+    "costs.cpython-312.pyc",
+    "costs.cpython-313.pyc",
+    "diskio.cpython-312.pyc",
+    "diskio.cpython-313.pyc",
+    "filelock.cpython-312.pyc",
+    "filelock.cpython-313.pyc",
+    "guard.cpython-312.pyc",
+    "guard.cpython-313.pyc",
+    "launcher.cpython-312.pyc",
+    "launcher.cpython-313.pyc",
+    "ledger.cpython-312.pyc",
+    "ledger.cpython-313.pyc",
+    "policy.cpython-312.pyc",
+    "policy.cpython-313.pyc",
+    "probes.cpython-312.pyc",
+    "probes.cpython-313.pyc",
+    "procs.cpython-312.pyc",
+    "procs.cpython-313.pyc",
+    "watchdog.cpython-312.pyc",
+    "watchdog.cpython-313.pyc",
+    "winjob.cpython-312.pyc",
+    "winjob.cpython-313.pyc"
+  ]
+}
