@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Support exact captured Windows paths
         if: runner.os == 'Windows'
@@ -35,3 +35,5 @@ jobs:
         run: python gateway_guard/qualify.py
       - name: Reviewed inert fixture candidate and existing policy regressions
         run: python -B inert_fixture_guard/qualify.py
+      - name: Native adapter bytecode flag and retained policy regressions
+        run: python -B native_adapter_guard/qualify.py

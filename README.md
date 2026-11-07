@@ -1,5 +1,9 @@
 # Skyrim VR save-guard qualification
 
+The isolated `native_adapter_guard/` packet tests recognition of literal Python
+`-B` before the pinned ReSaver adapter, directly or through the resource runner.
+Its README records the scope and separate review/CI/deployment gates.
+
 Public CI for changes to a personal Skyrim VR install's agent save guard (a Claude Code / Codex PreToolUse hook
 that backs up ESS/SKSE save pairs before changes and refuses unapproved bulk or runtime save/load operations).
 

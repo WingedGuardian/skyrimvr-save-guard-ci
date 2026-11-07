@@ -1,0 +1,238 @@
+"""Native ReSaver Plus compatibility/preservation adapter.
+
+One maintained native backend; frozen Java is for explicit differential checks.
+No arbitrary native flags, existing-output writes, runtime actions or fallback.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import html
+import importlib.util
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parent.parent
+MANIFEST = ROOT / "tools/resaver-native.json"
+READS = {"info", "dump", "find", "find-refs", "worries", "changeform", "recon",
+         "extradata-scan", "changeform-diff", "globaldata", "globaldata-diff",
+         "freeze-report", "writer-scan", "verify-roundtrip"}
+EDITS = {"set-var", "set-global", "clean", "reset-havok", "cleanse-formlists", "remove-created"}
+VALUE_FLAGS = {"--limit", "--script", "--type", "--depth"}
+FLAGS = {"info": set(), "dump": {"--limit", "--undefined-only", "--script", "--type"},
+         "find": set(), "find-refs": set(), "worries": set(),
+         "changeform": {"--raw", "--depth"}, "recon": set(),
+         "extradata-scan": {"--limit", "--type"}, "changeform-diff": {"--quests"},
+         "globaldata": set(), "globaldata-diff": set(), "freeze-report": set(),
+         "writer-scan": set(), "verify-roundtrip": set(),
+         "set-var": {"--apply", "--type"}, "set-global": {"--apply"},
+         "clean": {"--apply", "--undefined", "--unattached", "--terminate-threads"},
+         "reset-havok": {"--apply"}, "cleanse-formlists": {"--apply"}, "remove-created": {"--apply"}}
+KNOWN_FREEZE = ("diversedragon", "vddmainsct", "_reaper", "soulreaper")
+GLOBAL_NAMES = {0:"MiscStats",1:"PlayerLocation",2:"TES",3:"GlobalVariables",4:"CreatedObjects",
+                5:"Effects(IMOD)",6:"WeatherSystem",7:"AudioData",8:"SkyCells",100:"ProcessLists",
+                101:"Combat",102:"Interface",103:"ActorCauses",104:"Unknown104",105:"DetectionManager",
+                106:"LocationMetaData",107:"QuestStaticData",108:"StoryTeller",109:"MagicFavorites",
+                110:"PlayerControls",111:"StoryEventManager",112:"IngredientShared",113:"MenuControls",
+                114:"MenuTopicManager",1001:"Papyrus",1002:"AnimObjects",1003:"Timer",
+                1004:"SynchronizedAnimations",1005:"Main"}
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def pair_hashes(path):
+    return {suffix: digest(p) if p.is_file() else None
+            for suffix in (".ess", ".skse") for p in [Path(path).with_suffix(suffix)]}
+
+
+def executable():
+    data = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    path = (ROOT / data["executable"]).resolve(strict=True)
+    allowed = (ROOT / "tools/resaver-plus/33-82a7d31-native1").resolve()
+    if not path.is_relative_to(allowed) or path.name != "resaverpp-cli.exe":
+        raise ValueError("Native candidate path escapes its qualified directory")
+    if digest(path) != data["sha256"]:
+        raise ValueError("Native executable differs from the pinned candidate")
+    return path, data["sha256"]
+
+
+def invocation(argv):
+    if len(argv) < 2 or argv[0] not in FLAGS:
+        raise ValueError("Expected a supported operation and one ESS input")
+    op, value = argv[:2]
+    source = Path(value).resolve(strict=True)
+    if not source.is_file() or source.suffix.lower() != ".ess":
+        raise ValueError("Expected an existing ESS input")
+    positions, options = [], {}
+    i = 2
+    while i < len(argv):
+        token = argv[i]
+        if token.startswith("--"):
+            if token not in FLAGS[op] or token in options:
+                raise ValueError("Unknown or repeated option: " + token)
+            if token in VALUE_FLAGS:
+                i += 1
+                if i == len(argv):
+                    raise ValueError("Missing option value: " + token)
+                options[token] = argv[i]
+            else:
+                options[token] = True
+        else:
+            positions.append(token)
+        i += 1
+    if op in ("find", "find-refs", "globaldata-diff", "changeform-diff"):
+        if not 1 <= len(positions) <= (2 if op == "changeform-diff" else 1):
+            raise ValueError("Wrong positional argument count")
+    elif op in ("dump", "changeform"):
+        if len(positions) > 1:
+            raise ValueError("Too many positional arguments")
+    elif op == "set-var":
+        if len(positions) not in (1, 3, 4):
+            raise ValueError("set-var needs id or id/index/value/[output]")
+    elif op == "set-global":
+        if len(positions) not in (2, 3):
+            raise ValueError("set-global needs target/value/[output]")
+    elif len(positions) > (1 if op in EDITS else 0):
+        raise ValueError("Too many positional arguments")
+    output = None
+    if "--apply" in options:
+        index = 3 if op == "set-var" else 2 if op == "set-global" else 0
+        if len(positions) != index + 1:
+            raise ValueError("Apply requires one explicit new output")
+        requested = Path(positions[index]).absolute()
+        if any(os.path.lexists(requested.with_suffix(s)) for s in (".ess", ".skse")):
+            raise ValueError("Refusing either existing output member")
+        output = requested.resolve()
+        if output.suffix.lower() != ".ess" or output == source:
+            raise ValueError("Output must name a separate new ESS pair")
+        if any(os.path.lexists(output.with_suffix(s)) for s in (".ess", ".skse")):
+            raise ValueError("Refusing either existing output member")
+        if not output.parent.is_dir():
+            raise ValueError("Output directory must already exist")
+        backup_store = (ROOT / ".claude/backups/save-backups").resolve()
+        if output.is_relative_to(backup_store):
+            raise ValueError("Output cannot be inside the permanent backup store")
+        positions[index] = str(output)
+    if op in ("globaldata-diff", "changeform-diff"):
+        other = Path(positions[0]).resolve(strict=True)
+        if not other.is_file() or other.suffix.lower() != ".ess":
+            raise ValueError("Expected an existing second ESS input")
+        positions[0] = str(other)
+    native = [op, str(source), *positions]
+    for flag, value in options.items():
+        native.append(flag)
+        if flag in VALUE_FLAGS:
+            native.append(str(value))
+    return op, source, output, native
+
+
+def run(binary, args, expected_hash):
+    if digest(binary) != expected_hash:
+        raise ValueError("Candidate changed since admission")
+    result = subprocess.run([str(binary), "--json", *args], capture_output=True, timeout=180)
+    try:
+        value = json.loads(result.stdout.decode("utf-8", errors="strict"))
+    except (ValueError, UnicodeError) as exc:
+        raise RuntimeError("Native backend returned invalid structured output") from exc
+    if result.returncode or not value.get("ok"):
+        raise RuntimeError(value.get("error", "Native backend rejected operation"))
+    return value
+
+
+def project(op, result):
+    """Formatting and installation-specific heuristics only; no save parsing."""
+    if op in ("globaldata", "globaldata-diff"):
+        for block in result.get("blocks", result.get("changed", [])):
+            block["name"] = GLOBAL_NAMES.get(block["type"], "Type" + str(block["type"]))
+            raw = block.pop("rawBase64", None)
+            if raw is not None:
+                block["sha"] = hashlib.sha256(base64.b64decode(raw, validate=True)).hexdigest()[:20]
+    if op == "worries":
+        result["reportHtml"] = "<pre>" + html.escape(result["reportText"]) + "</pre>"
+    if op == "changeform" and "bodyBase64" in result:
+        result["bodyHex"] = base64.b64decode(result["bodyBase64"], validate=True).hex(" ")
+    if op == "extradata-scan":
+        result["scanned"] = result["examined"]
+        result["failed"] = sum(row["fail"] for row in result["perType"].values())
+        result["perType"] = {name: {"scanned": row["ok"] + row["fail"], "failed": row["fail"], "ok": row["ok"]}
+                             for name, row in result["perType"].items()}
+        result["otherFailures"] = {name: count for name, count in result["failureCategories"].items()
+                                   if name != "extra-unknown-type"}
+    if op == "freeze-report":
+        counts = result["counts"]
+        flagged = {}
+        for name in ("activeByScript", "suspendedByScript"):
+            for script, count in result.pop(name, {}).items():
+                if any(token in script.lower() for token in KNOWN_FREEZE):
+                    flagged[script] = flagged.get(script, 0) + count
+        result["knownFreezeScripts"] = dict(sorted(flagged.items()))
+        signals = []
+        for key in ("undefinedThreads", "undefinedActiveScripts"):
+            if counts[key]:
+                signals.append(f"{key}={counts[key]}")
+        if counts["suspendedStacks"]:
+            label = "highSuspendedStacks" if counts["suspendedStacks"] > 50 else "suspendedStacks"
+            signals.append(f"{label}={counts['suspendedStacks']}")
+        for key, label in (("terminated", "terminatedButPresent"), ("unattached", "unattached")):
+            if counts[key]:
+                signals.append(f"{label}={counts[key]}")
+        if flagged:
+            signals.append(f"watchlist:knownFreezeScriptsActive={len(flagged)}")
+        result["signals"] = signals
+    result["backend"] = "ReSaver Plus native"
+    return result
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv == ["--help"]:
+        print(json.dumps({"ok": True, "backend": "ReSaver Plus native",
+                          "usage": "resaver-cli.sh <operation> <input.ess> [arguments]",
+                          "operations": sorted(FLAGS), "writes": "explicit separate new output; preview before --apply; permanent pair backups"}))
+        return 0
+    op, source, output, native = invocation(argv)
+    binary, binary_hash = executable()
+    before = pair_hashes(source)
+    backups = []
+    if output is not None:
+        spec = importlib.util.spec_from_file_location("pair_guard", ROOT / ".claude/hooks/protect-save-access.py")
+        guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guard)
+        # Exactly one source and one new output; the source is never modified.
+        backups = guard.backup_pairs([str(source), str(output)], "native-controlled-edit",
+                                    "resaver-native", "one new output: " + op, "none",
+                                    deadline=time.monotonic() + 120)
+        preview = run(binary, [arg for arg in native if arg != "--apply"], binary_hash)
+        if not preview.get("deltaVerified") or pair_hashes(source) != before:
+            raise RuntimeError("Native plan is unverified or input changed during planning")
+    result = run(binary, native, binary_hash)
+    if pair_hashes(source) != before:
+        raise RuntimeError("Source pair changed during the operation; candidate output retained")
+    if output is not None:
+        if not all(result.get(key) for key in ("deltaVerified", "verified", "wroteFile")):
+            raise RuntimeError("Native write lacks complete verification; candidate output retained")
+        ignored = {"apply", "dryRun", "wroteFile", "verified"}
+        if {k:v for k,v in result.items() if k not in ignored} != {k:v for k,v in preview.items() if k not in ignored}:
+            raise RuntimeError("Applied target/delta receipt differs from preview; candidate output retained")
+        if pair_hashes(output)[".skse"] != before[".skse"]:
+            raise RuntimeError("Co-save bytes or presence changed unexpectedly; candidate output retained")
+        result["pairBackups"] = [row["id"] for row in backups]
+        result["inputHashes"] = before
+        result["outputHashes"] = pair_hashes(output)
+    print(json.dumps(project(op, result), ensure_ascii=True, allow_nan=False))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+        print(json.dumps({"ok": False, "error": str(exc)}, allow_nan=False))
+        raise SystemExit(2)

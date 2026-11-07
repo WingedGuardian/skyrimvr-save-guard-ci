@@ -1,0 +1,21 @@
+--- a/protect-save-access.py
++++ b/protect-save-access.py
+@@ -1478,6 +1478,9 @@
+     python = r'(?:.*[/\\])?(?:python(?:\d+(?:\.\d+)*)?|py)(?:\.exe)?'
+     if len(words) < 2 or not re.fullmatch(python, words[0], re.I):
+         return None
++    # Normalize only literal -B; all other flags retain existing classification.
++    if len(words) > 2 and words[1] == '-B':
++        words = words[:1] + words[2:]
+     if Path(words[1]).name.lower() == 'rb.py':
+         runner = Path.home() / '.claude/tools/resource-budget/rb.py'
+         if Path(msys_fix(words[1])).resolve() != runner.resolve() or words[2:3] != ['run']:
+@@ -1493,6 +1496,8 @@
+         words = words[divider + 1:]
+         if len(words) < 2 or not re.fullmatch(python, words[0], re.I):
+             return None
++        if len(words) > 2 and words[1] == '-B':
++            words = words[:1] + words[2:]
+     if len(words) < 2 or Path(words[1]).name.lower() != 'resaver-native.py':
+         return None
+     try:

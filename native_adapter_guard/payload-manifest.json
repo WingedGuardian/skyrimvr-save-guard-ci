@@ -1,0 +1,18 @@
+{
+  "baseline_reference": "inert_fixture_guard/candidate.py",
+  "baseline_sha256": "4a3aae737b938433a78a9b35e631c1f7a1ba05a98fb9334934529ad22d90a4e6",
+  "files": {
+    ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4",
+    "adapter-source.txt": "38d3781c8fbe906dc35b1491d01e95127653d4f101d69e0539b150c7f1830af0",
+    "candidate.patch": "8870b01730ef0f00e4756acf57dc30cb94e77ad900edf859147110abcbd31ac8",
+    "candidate.py": "19a5a52d28edeafdc487a45a37e92ab6198b2d836503784ca78f0e562190d4bf",
+    "qualify.py": "f84cb7568e28fed165adbe9b364bd1cf24b48f632d7ce8cfc39bbac381ee43b1",
+    "README.txt": "78a69bea85b8657b88a1236645ac9b0f156077a1774cb01c2d5d3ced31d6b349",
+    "test_candidate.py": "1cf5ed05dd9f25945a693e8a848b8ecec4cea92961c45320c5cd57c6892b19eb",
+    "restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c"
+  },
+  "referenced_manifests": {
+    "gateway_guard/payload-manifest.json": "50ce7331e220acacf56ef8f0ed7406787ff13c4299a4169ec43c5ec5bb964fae",
+    "inert_fixture_guard/payload-manifest.json": "57d1928e5ed8ea47d3a68c3081f00540342a9780e1e8989f7ae238dfe6f39977"
+  }
+}
