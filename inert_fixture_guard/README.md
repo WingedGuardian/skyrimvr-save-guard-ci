@@ -1,5 +1,19 @@
 # Exact reviewed inert-fixture exception
 
+## Host-envelope correction
+
+The earlier `4024afc` candidate passed offline/CI but failed actual-host
+qualification and was withdrawn. Unified exec reports canonical `Bash` to hooks
+even when the configured shell is PowerShell. The original tests paired tool
+labels with assumed shell syntax and missed that real combination. The correction
+changes only the literal registry, retaining its predicates, ordinary policy and
+all43source/runtime/cache pins. New regressions reproduce the observed envelope
+and reject unobserved aliases/no-call-operator forms, including a mutation twin.
+Official contract: https://learn.chatgpt.com/docs/hooks . Fresh local observation
+uses the unchanged guard advisory path and an ordinary text artifact; no save
+file, hook mutation or blocked fixture execution. See `ENVELOPE-RESULTS.json`;
+`RESULTS.json` records the earlier candidate and does not qualify this revision.
+
 This isolated change adds one source-qualified non-save fixture exception. Its
 baseline references the unchanged existing gateway packet guard, SHA256
 `fe1005c4bab628ec5c35f93e9d180a635bf12a6cd99187284fde2b56564a7ed4`.
@@ -8,9 +22,10 @@ qualification packet: these are guard-decision and preservation regressions.
 
 ## Eligibility
 
-Only one full-path interpreter/resource-wrapper/test command is eligible, with
-separately exact Bash and PowerShell forms (PowerShell uses `&`). The cwd, shell
-tool, source contents and all declared dependencies must match. Both interpreters
+Only the observed canonical hook tool `Bash` with the exact configured PowerShell
+command (including its leading `&`) is eligible. A hook tool name does not select
+the execution shell. Unobserved labels and the old no-`&` spelling are rejected.
+The cwd, source contents and all dependencies must match. Both interpreters
 use `-E -s -S -B`; resource admission remains fixed to headroom, explicit limits,
 below-normal priority and a bounded wait. Extra flags, commands, a different
 resource home or a resource config file revoke the exception. This is no general

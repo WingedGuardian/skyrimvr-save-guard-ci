@@ -1,0 +1,8 @@
+{
+  "canonical_hook_tool": "Bash",
+  "actual_shell": "PowerShell",
+  "command": "& \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{HOME}/.claude/tools/resource-budget/rb.py\" run --policy headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 --priority below_normal --wait-until-fits 2 -- \"{HOME}/AppData/Local/Programs/Python/Python310/python.exe\" -E -s -S -B \"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py\"",
+  "evidence": "Fresh unchanged-host advisory observation plus official hook coverage; no owner fixture executed",
+  "official_source": "https://learn.chatgpt.com/docs/hooks",
+  "reproduced_refused_command_sha256_prefix": "060e873a0ee7a433"
+}

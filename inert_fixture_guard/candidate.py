@@ -360,35 +360,13 @@ REVIEWED_NON_SAVE_LIFECYCLE = {'_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeou
 # Exact reviewed inert commands only. Populated after dependency qualification.
 REVIEWED_INERT_FIXTURES = {
     '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py': {   'cache_tag': 'cpython-310',
-        'commands': {   'Bash': '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s -S -B '
-                                '"{HOME}/.claude/tools/resource-budget/rb.py" run --policy headroom --name '
-                                'delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 --priority '
-                                'below_normal --wait-until-fits 2 -- '
-                                '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s -S -B '
-                                '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"',
-                        'PowerShell': '& "{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s '
+        'commands': {'Bash': '& "{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s '
                                       '-S -B "{HOME}/.claude/tools/resource-budget/rb.py" run --policy '
                                       'headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk C=0.01 '
                                       '--priority below_normal --wait-until-fits 2 -- '
                                       '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s -S '
                                       '-B '
-                                      '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"',
-                        'exec_command': '& "{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E '
-                                        '-s -S -B "{HOME}/.claude/tools/resource-budget/rb.py" run --policy '
-                                        'headroom --name delirium-owner-quit --cpu 5 --ram 0.5 --disk '
-                                        'C=0.01 --priority below_normal --wait-until-fits 2 -- '
-                                        '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" -E -s '
-                                        '-S -B '
-                                        '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"',
-                        'functions.exec_command': '& '
-                                                  '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" '
-                                                  '-E -s -S -B "{HOME}/.claude/tools/resource-budget/rb.py" '
-                                                  'run --policy headroom --name delirium-owner-quit --cpu 5 '
-                                                  '--ram 0.5 --disk C=0.01 --priority below_normal '
-                                                  '--wait-until-fits 2 -- '
-                                                  '"{HOME}/AppData/Local/Programs/Python/Python310/python.exe" '
-                                                  '-E -s -S -B '
-                                                  '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"'},
+                                      '"{ROOT}/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/test_owner_quit.py"'},
         'dependencies': {   '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/binding.py': 'b325e3cb1921357426aacba4b021cf0f421365b353cf97be8da298602e59a517',
                             '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/owner_quit.py': 'bdccf71f505830e48797b61a99df07ff4574a6d2557f44208ecbae4568f9aefd',
                             '_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/shutdown_recovery.py': 'be6dd42d22c9c934c50afbf34d707b22f461d3db38c9aea69050baa0f11e4abd',
@@ -433,7 +411,7 @@ REVIEWED_INERT_FIXTURES = {
                                  'AppData/Local/Programs/Python/Python310/vcruntime140.dll': '9d2b40f0395cc5d1b4d5ea17b84970c29971d448c37104676db577586d4ad1b1',
                                  'AppData/Local/Programs/Python/Python310/vcruntime140_1.dll': '34048abaa070ecc13b318cea31425f4ca3edd133d350318ac65259e6058c8b32'},
         'sha256': '9d273caf375793ed2c2c9a4eec96d26e72757d5251bf0140610f60f9d62f71a9',
-        'tools': ['Bash', 'PowerShell', 'exec_command', 'functions.exec_command']}
+        'tools': ['Bash']}
 }
 
 

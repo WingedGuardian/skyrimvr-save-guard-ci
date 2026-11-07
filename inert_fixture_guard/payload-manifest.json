@@ -5,12 +5,13 @@
     ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4",
     ".gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
     "cache-qualification.json": "630681293c6bb08e71479ed66425c2bbc7e68be6143fe65c77f04942dd7e11fc",
-    "candidate.patch": "44d8f20a090bc8f9f48ab195cd30d79b3bd376bd098d42459936dad78ab4ca2e",
-    "candidate.py": "dd7aac831c9a82d38f47eb81abac4434d19b6c2dd578a30dc6fa25c72f6f464c",
-    "command-template.json": "9bd64d9cca20f9637b9df522708170757ca9013ac593233863cc8e4a6fa489a7",
+    "candidate.patch": "5d362276cf56aea2d195d4ba93ed5d05581b3dfacbbf733e2a2ecfa3adccc088",
+    "candidate.py": "4a3aae737b938433a78a9b35e631c1f7a1ba05a98fb9334934529ad22d90a4e6",
+    "command-template.json": "35b2c0443780b4f072738c5a88030873299c13f20435f4046597e655e44ddf63",
     "DRAFT-STATUS.json": "0324f5390e1b0ec06131b4ce2d38b6335360b5624939bc96eea4cf5fb3dd3cd4",
     "fixture-source.txt": "d7654e4259c0a59874bd035a595d910250d92ac9850b4f40a1de132a77d1c2c0",
     "home-pins.json": "c43a3babd94e39a6db8200edb14f1d6ad54050226faf8ac4d7baf44baa3da5d9",
+    "hook-envelope.json": "f102ba101e49324f20757223739cff19baba3d53920e39b7b7fb175cd3d2e0d4",
     "inputs/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/binding.py": "b325e3cb1921357426aacba4b021cf0f421365b353cf97be8da298602e59a517",
     "inputs/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/owner_quit.py": "bdccf71f505830e48797b61a99df07ff4574a6d2557f44208ecbae4568f9aefd",
     "inputs/_CLAUDE_OUTPUT/delirium-vr-assessment-20261104/native-test-preparation-20261106/shutdown_recovery.py": "be6dd42d22c9c934c50afbf34d707b22f461d3db38c9aea69050baa0f11e4abd",
@@ -20,9 +21,9 @@
     "inputs/tools/vr-headless.py": "c00fda353828460b09b177adc924d4bc7995562d81d34856abfdb169f036618a",
     "project-pins.json": "a68d792a12b321003ca0215f334e2ea0222a91c6fa1cfe16d9b41e2cf34b8391",
     "qualify.py": "e99c24de5cbe720d1b819d3b2d6f8d56c55e0215ced08346a1dff24068b515f5",
-    "README.md": "a0441bd9f51474dbcbf5c9c2f02a7ae7796de709ccc961084f0a7f7bc0356b9e",
+    "README.md": "748bb5a43719e62c6ff63b6b5cf0bc29edff81779264ae0cb43c4ad38424345a",
     "restore-save-backup.py": "5e6412a77422b26a4cf07fd421ae1fc34e7066785a2fec0c9f23a6c37bd125eb",
     "runtime-controls.json": "9fe49e3bab80c15b4711de2fd5a21706118e30d5f0250e04348b6f82a3d28cf8",
-    "test_candidate.py": "99496233d870080a7eba8bcdff8b5d78955bed6d0e4f3dc6996abb88d616fdf1"
+    "test_candidate.py": "f22d46f0e89802965501689bcd2953954badbedecb59bc54c05430d9f0edc0c3"
   }
 }

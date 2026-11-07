@@ -1,0 +1,59 @@
+{
+  "state": "Reviewed isolated correction; execution and new exact-commit CI pending",
+  "date_utc": "2026-11-07T17:01:53.073Z",
+  "candidate_sha256": "4a3aae737b938433a78a9b35e631c1f7a1ba05a98fb9334934529ad22d90a4e6",
+  "tests_sha256": "f22d46f0e89802965501689bcd2953954badbedecb59bc54c05430d9f0edc0c3",
+  "prior_candidate_commit": "4024afcbb85a3d84452e55a27c1bc58d78045ad1",
+  "official_source": "https://learn.chatgpt.com/docs/hooks",
+  "finding": "exec_command canonical hook label is Bash while the configured execution shell is PowerShell; prior registry paired tool labels with presumed shell syntax",
+  "evidence": {
+    "fresh_unchanged_host_advisory_observation": true,
+    "observed_hook_tool": "Bash",
+    "actual_execution_shell": "PowerShell",
+    "ordinary_text_artifact_only": true,
+    "save_file_opened_or_created": false,
+    "refused_command_hash_reconstructed": "060e873a0ee7a433",
+    "historical_full_payload_captured": false,
+    "prior_candidate_classifier_reproduces_refusal": true
+  },
+  "source_delta": {
+    "only_AST_definition_changed_vs_prior": "REVIEWED_INERT_FIXTURES",
+    "allowed_hook_tools": [
+      "Bash"
+    ],
+    "exact_command": "unchanged PowerShell form including leading call operator",
+    "unobserved_aliases_removed": true,
+    "predicate_and_ordinary_policy_unchanged": true,
+    "dependency_pins_unchanged": 43
+  },
+  "review": {
+    "independent_source_clearance": true,
+    "scope": "normal-admission local offline qualification only; exact-commit readback follows"
+  },
+  "qualification": {
+    "new_methods_prepared": 21,
+    "red_attempt": {
+      "launched": false,
+      "reason": "bounded normal resource admission WAIT"
+    },
+    "post_review_attempt": {
+      "launched": false,
+      "reason": "bounded normal RAM and commit admission WAIT"
+    },
+    "new_tests_passed": null,
+    "new_CI_run": null,
+    "prior_CI_does_not_qualify_new_bytes": true
+  },
+  "confidence": {
+    "concrete_mismatch": "high; direct observation plus deterministic prior-candidate reproduction",
+    "static_fix": "high for the mismatched binding only",
+    "executed_new_regressions": "not established",
+    "actual_host_or_native_acceptance": "not established"
+  },
+  "installed_guard_changed": false,
+  "refused_fixture_executed": false,
+  "public_push": false,
+  "CI_dispatched": false,
+  "game_calls": 0,
+  "native_acceptance": false
+}
