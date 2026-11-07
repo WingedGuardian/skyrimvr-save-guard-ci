@@ -1,0 +1,94 @@
+--- a/protect-save-access.py
++++ b/protect-save-access.py
+@@ -357,9 +357,81 @@
+                                                                                                        '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/reference_adapter.py': '9bb7f88bc380d6b416bfeab26f357e53c38eaea7b0836c960b5594e1db310201'}}}
+ 
+ 
+-def read_only_script_call(script, raw, text, cwd='.'):
++# Exact reviewed inert commands only. Populated after dependency qualification.
++REVIEWED_INERT_FIXTURES = {}
++
++
++def reviewed_inert_fixture_call(script, raw, text, cwd, tool):
++    """One source-qualified command envelope; never a generic test exemption."""
++    if type(REVIEWED_INERT_FIXTURES) is not dict or not REVIEWED_INERT_FIXTURES:
++        return False
++    started = time.monotonic()
++    def plain(path):
++        for part in (path, *path.parents):
++            if time.monotonic() - started > 2.0:
++                return False
++            if '..' in part.parts:
++                return False
++            info = os.lstat(part)
++            if os.path.islink(part) or (getattr(info, 'st_file_attributes', 0) or 0) & 0x400:
++                return False
++        return True
++    def digest(value):
++        return type(value) is str and re.fullmatch('[0-9a-f]{64}', value) is not None
++    try:
++        originals = (ROOT.absolute(), Path(cwd).absolute(), script.absolute(), Path.home().absolute())
++        if not all(plain(path) for path in originals):
++            return False
++        root, current, resolved, home_root = (path.resolve(strict=True) for path in originals)
++        if current != root:
++            return False
++        relative = resolved.relative_to(root).as_posix()
++        spec = REVIEWED_INERT_FIXTURES.get(relative)
++        keys = {'sha256', 'command_sha256', 'tools', 'dependencies', 'home_dependencies', 'dependency_closure_complete'}
++        if type(spec) is not dict or set(spec) != keys or spec['dependency_closure_complete'] is not True:
++            return False
++        if type(spec['tools']) is not list or not spec['tools'] or not all(type(t) is str for t in spec['tools']) or tool not in spec['tools']:
++            return False
++        if not digest(spec['sha256']) or not digest(spec['command_sha256']):
++            return False
++        if hashlib.sha256(text.encode('utf-8')).hexdigest() != spec['command_sha256']:
++            return False
++        paths = [(resolved, spec['sha256'])]
++        for base, entries, maximum in ((root, spec['dependencies'], 16), (home_root, spec['home_dependencies'], 64)):
++            if type(entries) is not dict or not entries or len(entries) > maximum:
++                return False
++            for name, expected in entries.items():
++                if time.monotonic() - started > 2.0:
++                    return False
++                if type(name) is not str or not digest(expected) or Path(name).is_absolute():
++                    return False
++                path = (base / name).absolute()
++                if not plain(path) or path.resolve(strict=True) != path or not path.is_relative_to(base):
++                    return False
++                paths.append((path, expected))
++        total = 0
++        for path, expected in paths:
++            if time.monotonic() - started > 2.0:
++                return False
++            info = path.stat()
++            remaining = 2097152 - total
++            total += info.st_size
++            if info.st_mode & 0o170000 != 0o100000 or info.st_nlink != 1 or total > 2097152:
++                return False
++            with path.open('rb') as stream:
++                data = stream.read(remaining + 1)
++            if len(data) != info.st_size or hashlib.sha256(data).hexdigest() != expected:
++                return False
++        return time.monotonic() - started <= 2.0
++    except (OSError, ValueError, KeyError, TypeError):
++        return False
++
++
++def read_only_script_call(script, raw, text, cwd='.', tool=None):
+     """Recognize pinned read-only calls, verified non-save plans, or the exact
+     user-approved non-save lifecycle. This never grants launch/load consent."""
++    if reviewed_inert_fixture_call(script, raw, text, cwd, tool):
++        return True
+     try:
+         rel = script.resolve().relative_to(ROOT).as_posix()
+     except (OSError, ValueError):
+@@ -2396,7 +2468,7 @@
+             script = Path(script_dir) / raw
+         if script.absolute() == Path(__file__).absolute() and text.rstrip().endswith('--self-test'):
+             continue
+-        if read_only_script_call(script, raw, text, script_dir):
++        if read_only_script_call(script, raw, text, script_dir, tool=tool):
+             continue
+         if script.name.lower() == RESTORE_HELPER.name.lower():
+             # Only its exact unchained form is judged by its record (restore_helper_call); any other use of the

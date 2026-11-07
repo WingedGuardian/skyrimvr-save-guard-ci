@@ -1,0 +1,5 @@
+[
+  {"name":"real console save", "tool":"Bash", "input":{"command":"curl http://127.0.0.1:8921/api/tool/console -d '{\"action\":\"exec\",\"command\":\"save test\"}'"}},
+  {"name":"real game load", "tool":"Bash", "input":{"command":"curl http://127.0.0.1:8921/api/tool/game -d '{\"action\":\"load\",\"name\":\"test\"}'"}},
+  {"name":"structured save", "tool":"mcp__devbench__game", "input":{"action":"save","name":"test"}}
+]

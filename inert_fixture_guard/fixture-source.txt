@@ -1,0 +1,2 @@
+# Nonexecuted classifier input: a request value, never dispatched by these tests.
+example = {"command": "save"}
