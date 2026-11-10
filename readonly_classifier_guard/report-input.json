@@ -1,0 +1,8 @@
+{
+  "tool_name": "mcp__node_repl__js",
+  "cwd": "{ROOT}",
+  "tool_input": {
+    "code": "var report = {kind:'source-only-refusal-investigation', original_reason:'A recursive or find-based delete reaches saves. This command would delete 0 save(s) right now.', finding:'The Python reader rd matches raw rd/rmdir patterns when .skse appears.', diagnostic:'Positive control data may mention C:/fixture/Saves/*.ess without executing it.'}; await fs.writeFile('{ROOT}/ordinary-output/INVESTIGATION.json', JSON.stringify(report, null, 2), {flag:'wx'});",
+    "title": "Preserve source-based findings; no payload execution"
+  }
+}

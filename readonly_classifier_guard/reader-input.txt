@@ -1,0 +1,17 @@
+$code=@'
+import json,pathlib,hashlib,collections
+O=pathlib.Path(r'{ROOT}');rd=lambda p:json.loads(pathlib.Path(p).read_bytes());sha=lambda p:hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest();r=rd(O/'TARGETLESS-RECOVERY-RUN05-RESULT.json');peers=rd(O/'TARGETLESS-RUN05-OLD73-PROCESS-PEER-DATA.json')['peers'];peer={x['root']:x for x in peers};rows=[];captures=[];tot=collections.Counter()
+for row in r['context_cases']:
+ root=pathlib.Path(row['root']);folder=root/'pair-fixtures';prepared=root/'state/r1/guarded-load/prepared-pair.json'
+ if not prepared.exists():continue
+ p=rd(prepared);originals=[pathlib.Path(p['test']),pathlib.Path(p['test']).with_suffix('.skse')];expected=[p['test_sha256'],p['test_skse_sha256']];backup=[]
+ for f in sorted(folder.glob('permanent-*.bin')):
+  kind=f.name.split('-')[1];s=sha(f);want=expected[0 if kind=='ess' else 1];backup.append(dict(file=str(f),kind=kind,sha256=s,matches_expected=s==want));tot['backup_members']+=1;tot['backup_members_matching']+=s==want
+ intent=root/'state/r1/guarded-load/load-intent.json';it=rd(intent) if intent.exists() else None
+ current=[sha(f) for f in originals];mutations=[v for v in peer[str(root)]['requests'] if v['method']!='GET'] if str(root) in peer else []
+ rows.append(dict(root=str(root),prepared_sha256=sha(prepared),expected=expected,current=current,backups=backup,intent=it,stored_mutations=mutations));tot['prepared_rows']+=1;tot['current_pair_drift']+=current!=expected;tot['intents']+=intent.exists()
+ for seal in sorted((root/'output').glob('*.complete')):
+  f=pathlib.Path(str(seal)[:-9]);raw=f.read_bytes();tokens=raw.decode().splitlines();captures.append(dict(file=str(f),sha256=sha(f),seal=seal.read_text(),header=tokens[0],record_kinds=dict(collections.Counter(x.split()[0] for x in tokens)),last=tokens[-1],peer_identity=peer[str(root)]['identity']));tot['sealed_captures']+=1
+print(json.dumps(dict(kind='separate-finite-authored-pair-and-sealed-capture-data',result_sha256=sha(O/'TARGETLESS-RECOVERY-RUN05-RESULT.json'),counts=dict(tot),pair_rows=rows,captures=captures),separators=(',',':')))
+'@
+& 'python' '{HOME}/.claude/tools/resource-budget/rb.py' run --name r05-authored-pair-read-hash --cpu 5 --ram 0.1 --mem-cap 0.3 --wait-until-fits 2 -- 'python' -E -s -S -B -c $code
