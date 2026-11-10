@@ -366,7 +366,36 @@ READ_ONLY_SCRIPT_VERBS = {'_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-202
 # User-approved 2026-10-29: configuration/owned-session operations, NOT save
 # operations. Pair creation/loading remains a separate protected CLI invocation.
 # This is not a launch approval; the lifecycle still checks its one-run consent.
-REVIEWED_NON_SAVE_LIFECYCLE = {'_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_batch_run.py': {'sha256': {'f23292ab096f77152ba44c3a69ae747b31851d2d81c806079644546e1a7d678d'},
+REVIEWED_NON_SAVE_LIFECYCLE = {
+ # Gateway loaded-engine parent lifecycle (user ruling 2026-11-10 14:25: same category as the 2026-10-29
+ # native_batch_run approval). Configuration and owned-session operations, NOT save operations: run metadata,
+ # native07/profile publication and rollback with permanent backups, the owned launch/stop, the protected-file
+ # restore. Pair creation and loading stay separate direct calls to tools/resaver-native-runtime.py.
+ '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controller.py': {
+     'sha256': {'3191462d2657c0ee78a6b94d3891afb69157da718bda865baa492f6ea42182c0'},
+     'verbs': {'prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore'},
+     'dependencies': {
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_run.py': '9f269bdbd1b5edc6984b0576028e496c5d7000562de052557516d2d9f259b777',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controlled_profile.py': 'e8298de90d41159f264273684341b9955ee1d496484ad2672a7ca23fa8eeba3b',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/goal_launch_authority.py': '061180c63590df4574fdc6306411ad4e00534808b8cc72d68e6a91f78c5f6bce',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/install-native.py': '13edef5dff9d560210039b39c9b41524ddc1bb84f97f0d143eaaf29dd9da6cd0',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/io.py': '8e8860b77c948ce493edf19dd71cb6b898b2e6b1e753101cffdd31ff13400c8b',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/reference_adapter.py': '3c419adf0db6690fda3b88959c6f8f343986966c9a613c385e56ec2f8d1c90be',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/reference_preservation.py': 'b0518e8484837d794b314304f8919b80a9e42b0ba6a23a636c0bcd16f049d4d7',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/context.py': 'c7ac74929a71f662e31182798b7faf266f729be57206d012b47c960c838285b4',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/session.py': 'f2b8d417adb4da5063b90c98c5e6ab8398da77a3d81231c82c7d7bd9b75454bc',
+                      'tools/vr-headless.py': 'c00fda353828460b09b177adc924d4bc7995562d81d34856abfdb169f036618a',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_lifecycle.py': '10b82f7d7e585cad00da1a20805c7e48d2bd6f5f9f742abf7c592236ae18cecf',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/completion_segments.py': 'e0a66b6d91154fe01b448a0bd3f1f0ee1997b189e598402581bdd311a5ae6824',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_memory_diagnostics.py': 'e9cd3e2e32fd53008f98b1127f42631fd708fc866b78f16633184d3f52452e9a',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/readiness.py': '19cd8bac5515c9263946997c3c7e32c581fe12adf833674020db16598d093f52',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/ownership.py': '2b16b5f127351c64e548129a0bad1b98cf5588791de7124e8eabd62d81e06671',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/session_publication.py': '4680e935c2563863bccc7a0aee4096e84086a68a1ac740513d1fa2974f8171e3',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/single_owner_exit.py': 'f78a3fe5a277a1167a273756a2e742ef03ff866191b9b4c34fcc2d615de40531',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/managed_owner.py': 'f8864adcedca272d51baf6f5d331c8cf6f50df37e6edc8ad02196a373904be96',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/process_identity.py': '09ede27b72c2302a2f8bda4878367fe0dfcdc43e83e20c262d46812526c54325',
+                      }},
+'_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_batch_run.py': {'sha256': {'f23292ab096f77152ba44c3a69ae747b31851d2d81c806079644546e1a7d678d'},
                                                                                       'verbs': {'preflight',
                                                                                                 'prepare',
                                                                                                 'publish',

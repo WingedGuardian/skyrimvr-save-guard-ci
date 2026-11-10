@@ -1,0 +1,11 @@
+{
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_lifecycle.py": "10b82f7d7e585cad00da1a20805c7e48d2bd6f5f9f742abf7c592236ae18cecf",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/completion_segments.py": "e0a66b6d91154fe01b448a0bd3f1f0ee1997b189e598402581bdd311a5ae6824",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_memory_diagnostics.py": "e9cd3e2e32fd53008f98b1127f42631fd708fc866b78f16633184d3f52452e9a",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/readiness.py": "19cd8bac5515c9263946997c3c7e32c581fe12adf833674020db16598d093f52",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/ownership.py": "2b16b5f127351c64e548129a0bad1b98cf5588791de7124e8eabd62d81e06671",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/session_publication.py": "4680e935c2563863bccc7a0aee4096e84086a68a1ac740513d1fa2974f8171e3",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/single_owner_exit.py": "f78a3fe5a277a1167a273756a2e742ef03ff866191b9b4c34fcc2d615de40531",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/managed_owner.py": "f8864adcedca272d51baf6f5d331c8cf6f50df37e6edc8ad02196a373904be96",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/process_identity.py": "09ede27b72c2302a2f8bda4878367fe0dfcdc43e83e20c262d46812526c54325"
+}

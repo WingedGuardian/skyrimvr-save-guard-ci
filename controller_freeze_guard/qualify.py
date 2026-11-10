@@ -93,10 +93,14 @@ class Scope(unittest.TestCase):
     def test_new_entry_pins_exactly_the_reviewed_bytes(self):
         pins = json.loads((HERE / 'project-pins.json').read_bytes())
         source, before = (HERE / 'candidate.py').read_text(), BASELINE.read_text()
+        lifecycle = json.loads((HERE / 'lifecycle-pins.json').read_bytes())
         for digest in pins.values():
-            # exactly one NEW occurrence: a pinned helper may already appear in an older entry (vr-headless.py does)
+            # exactly TWO new occurrences (the read-only freeze entry and the lifecycle entry); a pinned helper may
+            # already appear in an older entry (vr-headless.py does)
+            self.assertEqual(source.count(digest), before.count(digest) + 2, digest)
+        for digest in lifecycle.values():
             self.assertEqual(source.count(digest), before.count(digest) + 1, digest)
-        self.assertEqual(len(pins), 11)
+        self.assertEqual((len(pins), len(lifecycle)), (11, 9))
 
 
 def run(suite):

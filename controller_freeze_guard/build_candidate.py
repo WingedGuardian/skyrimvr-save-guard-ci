@@ -28,6 +28,23 @@ entry = """ # Gateway loaded-engine parent (user ruling 2026-11-10, option A): `
 """ % (SCRIPT, pins[SCRIPT], deps)
 s = s.replace(anchor, entry + anchor)
 
+life_anchor = "REVIEWED_NON_SAVE_LIFECYCLE = {"
+assert s.count(life_anchor) == 1
+lifecycle = json.loads((packet / 'lifecycle-pins.json').read_text(encoding='utf-8'))
+life_deps = ''.join("                      %r: %r,\n" % (k, v) for k, v in {**{k: v for k, v in pins.items() if k != SCRIPT}, **lifecycle}.items())
+life_entry = life_anchor + """
+ # Gateway loaded-engine parent lifecycle (user ruling 2026-11-10 14:25: same category as the 2026-10-29
+ # native_batch_run approval). Configuration and owned-session operations, NOT save operations: run metadata,
+ # native07/profile publication and rollback with permanent backups, the owned launch/stop, the protected-file
+ # restore. Pair creation and loading stay separate direct calls to tools/resaver-native-runtime.py.
+ %r: {
+     'sha256': {%r},
+     'verbs': {'prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore'},
+     'dependencies': {
+%s                      }},
+""" % (SCRIPT, pins[SCRIPT], life_deps)
+s = s.replace(life_anchor, life_entry, 1)
+
 helper_anchor = "def read_only_script_call(script, raw, text, cwd='.', tool=None):\n"
 assert s.count(helper_anchor) == 1
 helper = '''def _bare_single_call(raw, text):

@@ -2,7 +2,7 @@
  "kind": "controller-freeze-scope-v1",
  "baseline_source": "readonly_classifier_guard/candidate.py (deployed 2026-11-10 09:29 -05:00, DEPLOY.json)",
  "baseline_sha256": "1f8dc45eab46fc99f3b90ee34b9e3570266f3e38003ec449781ace17141ea00e",
- "expected_new_methods": 15,
+ "expected_new_methods": 16,
  "baseline_red": {
   "methods": 2,
   "failing_assertions": 5,
@@ -10,17 +10,19 @@
  },
  "reviewed_changed_declarations": [
   "READ_ONLY_SCRIPT_VERBS",
+  "REVIEWED_NON_SAVE_LIFECYCLE",
   "_bare_single_call",
   "read_only_script_call"
  ],
  "review": "independent read-only reviews 2026-11-10: v1 (test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; bytecode/tool-label limits), v2 (Scope pin count, quoted inner commands), v4 (word list beaten -> allow-list by shape), v5 (wrong composed-tail expectation fixed; value-less interpreter flags only; pre-existing gaps recorded below)",
  "files": {
-  "README.txt": "7d23b0d0f71a16ca44ac60517ca235aaf181d8f4e42d565a66a8deccdea36018",
-  "qualify.py": "512c35c982fc8ba71a32e4fd56376a61d41b966a03a5877d90660d87a010be06",
-  "test_candidate.py": "e21852be8af07f54be6c9c0d94e6477d2abaf6fdbc7a97be1587ad0a93eb9a28",
+  "README.txt": "3b2a59ec7006c0a00c28cbe9bc9dea1e1374d825848fa77efefd325aee3a396a",
+  "qualify.py": "596a9acdd86e7db916dbaac7c6413f3ee178b86ddb488e9eb5fe4ab6084df9af",
+  "test_candidate.py": "750900b5d3a03d3fd09898b6520030eb375fd783a43d67e227f6c02872256a26",
   "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
-  "candidate.py": "07b114afe0fd1e9ae82014d48f70a0c452e1923a949e7413645d075756d84582",
-  "candidate.patch": "beafa73e0718b99dc8b5faf762a7269564a57217e1023ab3bdb91c6c048c41e6",
+  "lifecycle-pins.json": "8a3f63b8dcefadc2b8a9c9dbad16f76c45b5a0ae4ae871c3c192014cc25b51f5",
+  "candidate.py": "1840a9e4a91c90f16cdf0e91fca9b44c577c9ccbfd4d722a226b52a48b446266",
+  "candidate.patch": "a462148beb531af62f4301688e243246d5d59a649f304466a531c000695e1c19",
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
  },
  "supporting_inputs": {

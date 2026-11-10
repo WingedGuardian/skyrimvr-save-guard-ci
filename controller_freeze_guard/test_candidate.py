@@ -87,7 +87,13 @@ class Pins(unittest.TestCase):
         self.assertNotIn('frozen_inputs', entry)
         self.assertNotIn('plan_verbs', entry)
         self.assertNotIn('exact_desktop_args', entry)
-        self.assertNotIn(SCRIPT, guard.REVIEWED_NON_SAVE_LIFECYCLE)
+        life = guard.REVIEWED_NON_SAVE_LIFECYCLE.get(SCRIPT)
+        self.assertIsNotNone(life)
+        self.assertEqual(life['sha256'], entry['sha256'])
+        self.assertEqual(life['verbs'], {'prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore'})
+        lifecycle = json.loads((HERE / 'lifecycle-pins.json').read_bytes())
+        self.assertEqual(life['dependencies'], {**pins, **lifecycle})
+        self.assertNotIn('exact_desktop_args', life); self.assertNotIn('frozen_inputs', life)
 
 
 class FreezeExemption(unittest.TestCase):
@@ -119,7 +125,7 @@ class FreezeExemption(unittest.TestCase):
             self.table[SCRIPT] = dict(real, sha256={digest(self.script)}, dependencies=dependencies)
         self.patches = [patch.object(guard, 'ROOT', self.root),
             patch.object(guard, 'READ_ONLY_SCRIPT_VERBS', self.table),
-            patch.object(guard, 'REVIEWED_NON_SAVE_LIFECYCLE', {}),
+            patch.object(guard, 'REVIEWED_NON_SAVE_LIFECYCLE', {}),   # lifecycle tests patch their own table
             patch.object(guard, 'REVIEWED_INERT_FIXTURES', {}),
             patch.object(guard, 'BACKUP_ROOT', self.root / 'permanent-backup-store'),
             patch.object(guard, 'ADVICE_LOG', self.root / 'ordinary-advice.jsonl'),
@@ -183,10 +189,38 @@ class FreezeExemption(unittest.TestCase):
 
     # --- what the exemption must not cover (protected under both guards) ---
 
-    def test_only_the_freeze_verb_is_admitted(self):
-        for verb in ('prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore', ''):
-            with self.subTest(verb=verb):
-                self.assert_protected(("python -B '" + SCRIPT + "' " + verb).rstrip())
+    def test_only_the_freeze_verb_is_a_read_only_verb(self):
+        # Lifecycle verbs live in a separate reviewed table (see Lifecycle below); with it emptied, only freeze
+        # is admitted by the read-only entry.
+        with patch.object(guard, 'REVIEWED_NON_SAVE_LIFECYCLE', {}):
+            for verb in ('prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore', ''):
+                with self.subTest(verb=verb):
+                    self.assert_protected(("python -B '" + SCRIPT + "' " + verb).rstrip())
+
+    def lifecycle_table(self):
+        real = guard.REVIEWED_NON_SAVE_LIFECYCLE.get(SCRIPT)
+        self.assertIsNotNone(real, 'controller lifecycle verbs are not a reviewed non-save lifecycle in this guard')
+        deps = {}
+        for name in real['dependencies']:
+            path = self.root / name
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(('# authored nonexecuted dependency ' + name + '\n').encode())
+            deps[name] = digest(path)
+        return {SCRIPT: dict(real, sha256={digest(self.script)}, dependencies=deps)}
+
+    def test_lifecycle_verbs_are_admitted_only_as_bare_or_absolute_calls(self):
+        with patch.object(guard, 'REVIEWED_NON_SAVE_LIFECYCLE', self.lifecycle_table()):
+            for verb in ('prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore'):
+                with self.subTest(verb=verb):
+                    self.assert_allowed("python -B '" + SCRIPT + "' " + verb)
+                    self.assert_allowed('cd .. ; ' + self.absolute(verb), 'PowerShell')
+                    self.assert_protected('cd .. ; ' + "python -B '" + SCRIPT + "' " + verb)
+            for verb in ('', 'apply', 'load', 'prepare Saves/x.ess', 'run --desktop current'):
+                with self.subTest(other=verb):
+                    self.assert_protected(("python -B '" + SCRIPT + "' " + verb).rstrip())
+            self.script.write_bytes(CONTROLLER + b'# changed\n')
+            self.assert_protected("python -B '" + SCRIPT + "' prepare")
 
     def test_freeze_composed_with_another_verb_is_judged_by_that_verb(self):
         for composed in (FREEZE + "; python -B '" + SCRIPT + "' prepare",
