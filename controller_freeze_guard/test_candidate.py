@@ -169,8 +169,17 @@ class FreezeExemption(unittest.TestCase):
         for tool in ('Bash', 'PowerShell'):
             with self.subTest(tool=tool):
                 self.assert_protected(REFUSED, tool)
-        self.assert_protected(HERESTRING + '\n' + self.absolute() + '; true', 'PowerShell')   # composed tail
-        self.assert_allowed(HERESTRING + '\n' + self.absolute(), 'PowerShell')               # absolute: composition is fine
+        self.assert_allowed(HERESTRING + '\n' + self.absolute() + '; true', 'PowerShell')   # absolute: composition is fine
+        self.assert_protected(HERESTRING + '\n' + self.absolute() + "; Remove-Item 'modeled-protected-location/case-1.ess'", 'PowerShell')
+
+    def test_bare_call_accepts_only_valueless_interpreter_flags(self):
+        # `python -X <token> freeze` would hand the token to -X and run ./freeze from the cwd (review 2026-11-10 v5).
+        for flags in (' -X', ' -W', ' -c', ' -m', ' --check-hash-based-pycs', ' -B -X'):
+            with self.subTest(flags=flags):
+                self.assert_protected('python' + flags + " '" + SCRIPT + "' freeze")
+        for flags in ('', ' -B', ' -E -s -B', ' -I', ' -BEs'):
+            with self.subTest(flags=flags):
+                self.assert_allowed('python' + flags + " '" + SCRIPT + "' freeze")
 
     # --- what the exemption must not cover (protected under both guards) ---
 

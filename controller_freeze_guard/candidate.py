@@ -536,7 +536,9 @@ def _bare_single_call(raw, text):
     SetLocation() all beat a word list)."""
     quoted = "(?:'" + re.escape(raw) + "'|\"" + re.escape(raw) + "\"|" + re.escape(raw) + ")"
     interpreter = r'(?:"[^"\n]*[/\\]|\'[^\'\n]*[/\\]|[^\s"\';|&]*[/\\])?(?:python\w*(?:\.\d+)?|py)(?:\.exe)?["\']?'
-    flags = r'(?:[ \t]+-[-\w]+)*'
+    # Only value-less single-letter options: `-X`, `-W`, `-c`, `-m` and long options take the NEXT word as their
+    # value, so `python -X <token> freeze` would run ./freeze from the cwd under the token's exemption.
+    flags = r'(?:[ \t]+-[BEIOPRSbdiqsuv]+)*'
     tail = r'(?:[ \t]+[^\s;&|`$(){}<>"\'\\]+)*'
     return re.fullmatch(r'[ \t]*(?:&[ \t]*)?' + interpreter + flags + r'[ \t]+' + quoted + tail + r'[ \t]*',
                         text, re.I) is not None

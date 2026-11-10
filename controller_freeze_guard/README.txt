@@ -31,7 +31,8 @@ cold-state check (session, tools/vr-headless.py). The full import closure is 34 
 import time and more through lazy imports; pinning all of it would revoke the exemption on
 every product edit, so the pin follows the native_batch_run.py precedent (script + the
 helpers that can act). project-pins.json records the eleven hashes; the Scope test proves
-each appears exactly once in the candidate.
+each appears exactly once MORE in the candidate than in the baseline (vr-headless.py already
+sits in two older entries).
 
 One rule change in read_only_script_call plus a helper `_bare_single_call` (review finding,
 HIGH): a RELATIVE script token is exempt only when the whole command is ONE bare call
@@ -68,9 +69,9 @@ Expected outcomes are frozen in test_candidate.py before candidate execution. Th
 registry is the guard's OWN entry re-pinned to authored stand-ins; the baseline has no entry
 and admits nothing (the first draft patched an authored entry into both guards, which the
 review caught: the baseline could not go red for the right reason, and Ubuntu CI 42842426652
-failed at that gate). The baseline must reproduce two methods / three failing assertions
-(the Pins check and the four admitted sanctioned-call subcases; two methods / five failing
-assertions); the candidate must pass all 14 methods and the retained read-only 20, inert 16, native-adapter
+failed at that gate). The baseline must reproduce two methods / five failing assertions
+(the Pins check and the four admitted sanctioned-call subcases);
+the candidate must pass all 15 methods and the retained read-only 20, inert 16, native-adapter
 12 and gateway policy/wrapper/sentinel checks. The eleven real pinned files are NOT in this
 public repository: CI proves the mechanism on authored stand-ins and that the entry carries
 exactly the reviewed hashes; the deploy step proves the real bytes with a live decision-only
