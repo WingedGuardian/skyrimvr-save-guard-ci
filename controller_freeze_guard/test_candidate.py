@@ -183,14 +183,24 @@ class FreezeExemption(unittest.TestCase):
             with self.subTest(prefix=prefix):
                 self.assert_protected(prefix + FREEZE)
                 self.assert_protected(prefix + REFUSED, 'PowerShell')
-        # the directory change written inside a quoted inner command, or without the word (review 2026-11-10 v2)
-        for composed in ("bash -c 'cd ../scratch; " + FREEZE + "; true'",
+        # the directory change written inside a quoted inner command, or without the word (review 2026-11-10 v2);
+        # the bash -c form is double-quoted so the inner single-quoted path stays one token (v3 had nested quotes)
+        for composed in ('bash -c "cd ../scratch; ' + FREEZE + '; true"',
                          'pwsh -Command "cd ../scratch; ' + FREEZE + '"',
                          '& {cd ../scratch; ' + FREEZE + '}',
                          'env -C ../scratch ' + FREEZE,
-                         'env --chdir=../scratch ' + FREEZE):
+                         'env --chdir=../scratch ' + FREEZE,
+                         'cd "' + str(self.root) + '"; cd ../scratch; ' + FREEZE):
             with self.subTest(command=composed):
                 self.assert_protected(composed, 'PowerShell')
+
+    def test_directory_change_to_the_session_folder_itself_keeps_the_exemption(self):
+        # The routine prefix in these sessions: cd into the game root while already there (side agent 2026-11-10).
+        for prefix in ('cd "' + str(self.root) + '" && ', 'cd ' + self.root.as_posix() + '; ',
+                       'Set-Location "' + str(self.root) + '"; ', 'cd . && ', 'pushd "' + str(self.root) + '"; '):
+            with self.subTest(prefix=prefix):
+                self.assert_allowed(prefix + FREEZE)
+                self.assert_allowed(prefix + REFUSED, 'PowerShell')
 
     def test_changed_controller_bytes_revoke_the_exemption(self):
         self.script.write_bytes(CONTROLLER + b'\n# one more line\n')

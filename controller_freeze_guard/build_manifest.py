@@ -18,7 +18,7 @@ manifest = {
     'kind': 'controller-freeze-scope-v1',
     'baseline_source': 'readonly_classifier_guard/candidate.py (deployed 2026-11-10 09:29 -05:00, DEPLOY.json)',
     'baseline_sha256': sha(repo / 'readonly_classifier_guard/candidate.py'),
-    'expected_new_methods': 12,
+    'expected_new_methods': 13,
     'baseline_red': {'methods': 2, 'failing_assertions': 3, 'errors': 0},
     'reviewed_changed_declarations': ['READ_ONLY_SCRIPT_VERBS', 'read_only_script_call'],
     'review': 'independent read-only review 2026-11-10 (findings 1-3 fixed: test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; 4-6 recorded as limits)',

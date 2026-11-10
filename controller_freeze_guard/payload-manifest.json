@@ -2,7 +2,7 @@
  "kind": "controller-freeze-scope-v1",
  "baseline_source": "readonly_classifier_guard/candidate.py (deployed 2026-11-10 09:29 -05:00, DEPLOY.json)",
  "baseline_sha256": "1f8dc45eab46fc99f3b90ee34b9e3570266f3e38003ec449781ace17141ea00e",
- "expected_new_methods": 12,
+ "expected_new_methods": 13,
  "baseline_red": {
   "methods": 2,
   "failing_assertions": 3,
@@ -14,12 +14,12 @@
  ],
  "review": "independent read-only review 2026-11-10 (findings 1-3 fixed: test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; 4-6 recorded as limits)",
  "files": {
-  "README.txt": "9646704fb56b5b63753c9566b6eb35d01236320d6352d10e0fe528aee75c69f3",
+  "README.txt": "3f26f4a1517788e069c62b375054853f3ec867502d49a61581427440206f047c",
   "qualify.py": "526914c6b8dd6d2c8c726c3a5478dc2c477bd27d0fe76e829247d0c3b16ed07d",
-  "test_candidate.py": "b67badf77f6ca66bdd5b92359f8a148b46518eb81524b46da57b8eea61dcb202",
+  "test_candidate.py": "702699f5fc65c174ea621f64ee080e652203c74aee11503b45c3da313d08b115",
   "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
-  "candidate.py": "93957130052d22b1084d94f39e35ce74aa5ca9e4b227575da07642b328c34165",
-  "candidate.patch": "fb1d751f6dda0cee2b628055c11791f2d038320142d5da7591cd06da0f24aa9a",
+  "candidate.py": "5a173b983f6e0d04b7d10ac616c7344649c2ec8a5323982f1168429a58e502b5",
+  "candidate.patch": "cdb6c1332bd8a7e05e040e17bf6bbb7a5f3fa61f665b31bb82ae8e8dfe8f89ca",
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
  },
  "supporting_inputs": {

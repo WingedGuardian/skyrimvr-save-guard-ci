@@ -30,16 +30,27 @@ s = s.replace(anchor, entry + anchor)
 
 anchor2 = "    starts = [m.end() for m in re.finditer(re.escape(raw), text)]\n    if not starts:\n        return False\n"
 assert s.count(anchor2) == 1
-rule = anchor2 + """    # A relative script token runs where the SHELL is when it executes, which a `cd` earlier in the command changes,
-    # while the hook resolves it against the session cwd first. No exemption for a relative token in a command that
-    # changes directory (review 2026-11-10: `cd <scratch>; python _CLAUDE_OUTPUT/.../controller.py freeze` would be
-    # judged by the pinned install copy and run an unpinned one); ordinary inspection still runs on it. The word may
-    # sit inside a quoted inner command (`bash -c 'cd x; ...'`, `pwsh -Command "cd x; ..."`, `& {cd x; ...}`), so any
-    # non-word neighbour counts, and GNU env -C/--chdir and -WorkingDirectory change directory without the word.
+rule = anchor2 + """    # A relative script token runs where the SHELL is when it executes, which a directory change earlier in the
+    # command moves, while the hook resolves it against the session cwd first (review 2026-11-10: `cd <scratch>;
+    # python _CLAUDE_OUTPUT/.../controller.py freeze` would be judged by the pinned install copy and run an unpinned
+    # one). The exemption survives only when every directory change the hook can parse resolves to the session cwd
+    # itself (the routine `cd "<root>" && ...` prefix from the root); a change it cannot parse (inside a quoted inner
+    # command, `chdir`/`sl`/`Push-Location`, GNU env -C/--chdir, -WorkingDirectory) or one that resolves elsewhere
+    # revokes it, and ordinary inspection still runs on the command.
     if not Path(raw).is_absolute() and re.search(
             r'(?<![\\w.-])(?:cd|chdir|set-location|sl|pushd|push-location)(?![\\w-])'
             r'|\\benv\\b[^;&|\\n]*\\s(?:-C|--chdir)\\b|-workingdirectory\\b', text, re.I):
-        return False
+        words = re.findall(r'(?<![\\w.-])(?:cd|chdir|set-location|sl|pushd|push-location|env|-workingdirectory)(?![\\w-])',
+                           text, re.I)
+        targets = _cd_targets(text)
+        try:
+            here = Path(cwd).resolve()
+            same = bool(targets) and len(targets) == len(words) and all(
+                (Path(t) if Path(t).is_absolute() else Path(cwd) / t).resolve() == here for t in targets)
+        except OSError:
+            same = False
+        if not same:
+            return False
 """
 s = s.replace(anchor2, rule)
 

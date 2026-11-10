@@ -34,11 +34,18 @@ helpers that can act). project-pins.json records the eleven hashes; the Scope te
 each appears exactly once in the candidate.
 
 One rule change in read_only_script_call (review finding, HIGH): a RELATIVE script token in
-a command that changes directory (cd, chdir, Set-Location, sl, pushd, Push-Location) is
-never exempt. The hook resolved the token against the session cwd first, the shell runs it
-from the cd target, so an unpinned copy at the target would have run under the pinned
-copy's exemption. The pre-existing gap applied to every exempt script; this entry would
-have widened it. Ordinary inspection still runs on such a command.
+a command that changes directory keeps its exemption only when every directory change the
+hook can parse (`_cd_targets`: cd, Set-Location, pushd) resolves to the session cwd itself,
+which is the routine `cd "<root>" && ...` prefix these sessions use from the root. A change
+the hook cannot parse (inside a quoted inner command, chdir/sl/Push-Location, GNU env
+-C/--chdir, -WorkingDirectory) or one that resolves elsewhere revokes the exemption. The hook
+resolved the token against the session cwd first while the shell runs it from the cd target,
+so an unpinned copy at the target would have run under the pinned copy's exemption; the
+pre-existing gap applied to every exempt script and this entry would have widened it.
+Ordinary inspection still runs on such a command. (v4: the v3 rule refused ANY directory
+change, which would have reopened the October housekeep false refusals; and one v3 contrast
+nested single quotes inside a single-quoted `bash -c` string, which is not the shape it meant
+to test and was allowed in CI 42846415162; it is double-quoted now.)
 
 Every other controller verb (prepare, publish, profile, preflight, run, menu-ready,
 loaded, stop, restore), a composed command with another verb, an argument naming a save
