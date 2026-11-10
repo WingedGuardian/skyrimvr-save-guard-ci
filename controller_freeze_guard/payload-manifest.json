@@ -12,18 +12,20 @@
   "READ_ONLY_SCRIPT_VERBS",
   "REVIEWED_NON_SAVE_LIFECYCLE",
   "_bare_single_call",
-  "read_only_script_call"
+  "read_only_script_call",
+  "_read_only_tail"
  ],
  "review": "independent read-only reviews 2026-11-10: v1 (test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; bytecode/tool-label limits), v2 (Scope pin count, quoted inner commands), v4 (word list beaten -> allow-list by shape), v5 (wrong composed-tail expectation fixed; value-less interpreter flags only; pre-existing gaps recorded below)",
  "files": {
   "README.txt": "a23e2fc21d9aa160cace0836172781dd314e7c48b8ababb296782f18d76c72f7",
-  "qualify.py": "4709978d896bb1ccb5827497ba611d7de6a3ad44304be1e57885b565a7c4b6e1",
-  "test_candidate.py": "750900b5d3a03d3fd09898b6520030eb375fd783a43d67e227f6c02872256a26",
+  "qualify.py": "576c38078183b0e5f24805dd05098ffb4a52fc9d91c799d4b5a924bd2c214b74",
+  "test_candidate.py": "ce6db6acee870924c3ee1754f0025a73ffabf95bc32551eceb00e8b3424bde51",
   "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
   "lifecycle-pins.json": "f469a8671a2a57a7b1b41161236a69f00193418aa3bc81505915e4c0445ea027",
-  "candidate.py": "d04c55080193ce4a936dcd1d26c3a0ed5e75b923b05e9e59e928b2048576965f",
-  "candidate.patch": "07e94dfc4a001b3a1795cf1b5fb6efbaf461dbf99c685c77625fd6f940c77ae8",
-  ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
+  "candidate.py": "f6ee870fbcbb1d46a2ef5d8264eb6a69e80b7d4a100904b62aa50f7d82f06ac2",
+  "candidate.patch": "4dc1c178cc09af5a738399bd3fa6813fd55875a274b9f8690275f2c03d543d22",
+  ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4",
+  "restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c"
  },
  "supporting_inputs": {
   ".github/workflows/qualify.yml": "55adb5223658b0a1f18a1aad08a149d5f2e35391f7c2d279d4494d0721375d94",

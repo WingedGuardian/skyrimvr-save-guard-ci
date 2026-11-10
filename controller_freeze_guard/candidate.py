@@ -373,6 +373,8 @@ REVIEWED_NON_SAVE_LIFECYCLE = {
  '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controller.py': {
      'sha256': {'3191462d2657c0ee78a6b94d3891afb69157da718bda865baa492f6ea42182c0'},
      'verbs': {'prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore'},
+     # The verb alone: the controller takes no other argument (v11 CI 2026-11-10 found `run --desktop current` admitted).
+     'exact_verb': True,
      'dependencies': {
                       '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_run.py': '9f269bdbd1b5edc6984b0576028e496c5d7000562de052557516d2d9f259b777',
                       '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controlled_profile.py': 'e8298de90d41159f264273684341b9955ee1d496484ad2672a7ca23fa8eeba3b',
@@ -660,6 +662,9 @@ def _read_only_tail(spec, rest, cwd='.'):
     if spec.get('exact_desktop_args'):
         return (len(words) == 3 and words[0] in spec['verbs']
                 and words[1] == '--desktop' and words[2] in ('pending', 'current', 'background'))
+    if spec.get('exact_verb'):
+        # Exactly one word, the verb: no option, value or second word rides on the reviewed entry.
+        return len(words) == 1 and words[0] in spec['verbs']
     if any(w in ('-h', '--help') for w in words):
         verb = '--help'
     else:

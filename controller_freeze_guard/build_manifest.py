@@ -13,14 +13,15 @@ def sha(p):
 
 
 files = ['README.txt', 'qualify.py', 'test_candidate.py', 'project-pins.json', 'lifecycle-pins.json', 'candidate.py', 'candidate.patch',
-         '.gitattributes']
+         '.gitattributes', 'restore-save-backup.py']
 manifest = {
     'kind': 'controller-freeze-scope-v1',
     'baseline_source': 'readonly_classifier_guard/candidate.py (deployed 2026-11-10 09:29 -05:00, DEPLOY.json)',
     'baseline_sha256': sha(repo / 'readonly_classifier_guard/candidate.py'),
     'expected_new_methods': 16,
     'baseline_red': {'methods': 2, 'failing_assertions': 5, 'errors': 0},
-    'reviewed_changed_declarations': ['READ_ONLY_SCRIPT_VERBS', 'REVIEWED_NON_SAVE_LIFECYCLE', '_bare_single_call', 'read_only_script_call'],
+    'reviewed_changed_declarations': ['READ_ONLY_SCRIPT_VERBS', 'REVIEWED_NON_SAVE_LIFECYCLE', '_bare_single_call', 'read_only_script_call',
+                                      '_read_only_tail'],
     'review': 'independent read-only reviews 2026-11-10: v1 (test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; bytecode/tool-label limits), v2 (Scope pin count, quoted inner commands), v4 (word list beaten -> allow-list by shape), v5 (wrong composed-tail expectation fixed; value-less interpreter flags only; pre-existing gaps recorded below)',
     'files': {name: sha(here / name) for name in files},
     'supporting_inputs': {name: sha(repo / name) for name in

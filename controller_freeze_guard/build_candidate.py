@@ -39,6 +39,8 @@ life_entry = life_anchor + """
  %r: {
      'sha256': {%r},
      'verbs': {'prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore'},
+     # The verb alone: the controller takes no other argument (v11 CI 2026-11-10 found `run --desktop current` admitted).
+     'exact_verb': True,
      'dependencies': {
 %s                      }},
 """ % (SCRIPT, pins[SCRIPT], life_deps)
@@ -78,6 +80,13 @@ rule = anchor2 + """    # A RELATIVE script token runs where the SHELL is when i
         return False
 """
 s = s.replace(anchor2, rule)
+
+tail_anchor = "    if any(w in ('-h', '--help') for w in words):\n        verb = '--help'\n"
+assert s.count(tail_anchor) == 1
+s = s.replace(tail_anchor, """    if spec.get('exact_verb'):
+        # Exactly one word, the verb: no option, value or second word rides on the reviewed entry.
+        return len(words) == 1 and words[0] in spec['verbs']
+""" + tail_anchor)
 
 (packet / 'candidate.py').write_text(s, encoding='utf-8', newline='')
 old = baseline.read_text(encoding='utf-8')

@@ -114,6 +114,8 @@ class FreezeExemption(unittest.TestCase):
         self.script.write_bytes(CONTROLLER)
         # The guard's OWN entry, re-pinned to the authored stand-ins. The baseline has no entry: nothing is admitted.
         real = guard.READ_ONLY_SCRIPT_VERBS.get(SCRIPT)
+        # Read before setUp's patches empty the lifecycle table (v11 CI red: lifecycle_table read the emptied one).
+        self.real_lifecycle = guard.REVIEWED_NON_SAVE_LIFECYCLE.get(SCRIPT)
         self.table = {}
         if real is not None:
             dependencies = {}
@@ -198,7 +200,7 @@ class FreezeExemption(unittest.TestCase):
                     self.assert_protected(("python -B '" + SCRIPT + "' " + verb).rstrip())
 
     def lifecycle_table(self):
-        real = guard.REVIEWED_NON_SAVE_LIFECYCLE.get(SCRIPT)
+        real = self.real_lifecycle
         self.assertIsNotNone(real, 'controller lifecycle verbs are not a reviewed non-save lifecycle in this guard')
         deps = {}
         for name in real['dependencies']:
@@ -216,7 +218,8 @@ class FreezeExemption(unittest.TestCase):
                     self.assert_allowed("python -B '" + SCRIPT + "' " + verb)
                     self.assert_allowed('cd .. ; ' + self.absolute(verb), 'PowerShell')
                     self.assert_protected('cd .. ; ' + "python -B '" + SCRIPT + "' " + verb)
-            for verb in ('', 'apply', 'load', 'prepare Saves/x.ess', 'run --desktop current'):
+            for verb in ('', 'apply', 'load', 'prepare Saves/x.ess', 'run --desktop current', 'stop --force',
+                         'restore now', 'loaded -v'):
                 with self.subTest(other=verb):
                     self.assert_protected(("python -B '" + SCRIPT + "' " + verb).rstrip())
             self.script.write_bytes(CONTROLLER + b'# changed\n')

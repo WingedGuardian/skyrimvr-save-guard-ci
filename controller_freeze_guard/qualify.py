@@ -163,8 +163,10 @@ def main():
     # are replaced by our exact diff.
     q = load(HERE.parent / 'gateway_guard/qualify.py', 'freeze_retained_gateway')
     q.GUARD = HERE / 'candidate.py'
+    # test_pin_tables_are_exactly_the_deployed_ones asserts the pin tables did NOT change; this packet adds exactly two
+    # reviewed entries, which Pins/Scope above check byte for byte (first reached in CI by v12, 2026-11-10).
     obsolete = {'test_decide_gains_only_the_new_pass', 'test_only_the_declared_definitions_changed',
-                'test_candidate_patch_is_the_exact_diff'}
+                'test_candidate_patch_is_the_exact_diff', 'test_pin_tables_are_exactly_the_deployed_ones'}
     retained = {name: value for name, value in vars(q.PinTests).items()
         if name.startswith('test_') and name not in obsolete}
     q.PinTests = type('FreezeCandidateAndRetainedChecks', (Scope,), retained)
