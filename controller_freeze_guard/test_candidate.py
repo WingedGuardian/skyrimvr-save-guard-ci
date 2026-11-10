@@ -1,9 +1,11 @@
 """Frozen contrasts for the reviewed `controller.py freeze` read-only exemption. Payload strings are NEVER executed.
 
 Only authored temporary files are created by test setup: a stand-in controller that, like the real one, spells the
-save folder and writes metadata files (the combination the hook cannot count from the command), its authored
-dependencies, and a modeled protected save folder. decide() must not run any backup, process or game operation;
-those entry points are instrumented to fail if reached. The installed guard is not imported or modified.
+save folder and writes metadata files (the combination the hook cannot count from the command), authored stand-ins
+for the pinned dependencies, and a modeled protected save folder. The registry under test is the guard's OWN entry
+with its hashes replaced by the authored stand-ins' hashes; a guard without the entry (the baseline) has nothing to
+admit. decide() must not run any backup, process or game operation; those entry points are instrumented to fail if
+reached. The installed guard is not imported or modified.
 """
 import hashlib
 import importlib.util
@@ -18,11 +20,18 @@ HERE = Path(__file__).resolve().parent
 guard = None  # The reviewed qualifier selects baseline or isolated candidate.
 
 TASK = '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09'
+BASE = '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28'
 SCRIPT = TASK + '/engine_parent/controller.py'
-DEPENDENCIES = ('_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_run.py',
+DEPENDENCIES = (BASE + '/native_run.py',
                 TASK + '/engine_parent/controlled_profile.py',
                 TASK + '/goal_launch_authority.py',
-                '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/install-native.py')
+                BASE + '/stage/tools/skyrimnet-output-guard/install-native.py',
+                BASE + '/gateway_test_support/io.py',
+                BASE + '/reference_adapter.py',
+                BASE + '/gateway_test_support/reference_preservation.py',
+                BASE + '/gateway_test_support/context.py',
+                BASE + '/gateway_test_support/session.py',
+                'tools/vr-headless.py')
 # Authored, never executed. Spells the save folder (hashing the source pair, checking the destination is absent) and
 # writes metadata: the shape that made the hook ask for an uncountable save set on 2026-11-10 (hash 6dbc55f8d488a55d).
 CONTROLLER = b"""import json, sys
@@ -63,7 +72,7 @@ def digest(data):
 class Pins(unittest.TestCase):
     """The candidate's live entry pins the exact bytes recorded for review (project-pins.json), nothing wider."""
 
-    def test_registry_pins_the_real_controller_and_its_four_direct_dependencies(self):
+    def test_registry_pins_the_real_controller_and_its_reviewed_dependencies(self):
         pins = json.loads((HERE / 'project-pins.json').read_bytes())
         entry = guard.READ_ONLY_SCRIPT_VERBS.get(SCRIPT)
         self.assertIsNotNone(entry, 'controller.py freeze is not a reviewed read-only script in this guard')
@@ -93,15 +102,19 @@ class FreezeExemption(unittest.TestCase):
         self.script = self.root / SCRIPT
         self.script.parent.mkdir(parents=True)
         self.script.write_bytes(CONTROLLER)
-        self.dependencies = {}
-        for name in DEPENDENCIES:
-            path = self.root / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(('# authored nonexecuted dependency ' + name + '\n').encode())
-            self.dependencies[name] = digest(path)
-        self.entry = {'sha256': {digest(self.script)}, 'verbs': {'freeze'}, 'dependencies': dict(self.dependencies)}
+        # The guard's OWN entry, re-pinned to the authored stand-ins. The baseline has no entry: nothing is admitted.
+        real = guard.READ_ONLY_SCRIPT_VERBS.get(SCRIPT)
+        self.table = {}
+        if real is not None:
+            dependencies = {}
+            for name in real['dependencies']:
+                path = self.root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(('# authored nonexecuted dependency ' + name + '\n').encode())
+                dependencies[name] = digest(path)
+            self.table[SCRIPT] = dict(real, sha256={digest(self.script)}, dependencies=dependencies)
         self.patches = [patch.object(guard, 'ROOT', self.root),
-            patch.object(guard, 'READ_ONLY_SCRIPT_VERBS', {SCRIPT: self.entry}),
+            patch.object(guard, 'READ_ONLY_SCRIPT_VERBS', self.table),
             patch.object(guard, 'REVIEWED_NON_SAVE_LIFECYCLE', {}),
             patch.object(guard, 'REVIEWED_INERT_FIXTURES', {}),
             patch.object(guard, 'BACKUP_ROOT', self.root / 'permanent-backup-store'),
@@ -117,6 +130,10 @@ class FreezeExemption(unittest.TestCase):
             item.start()
             self.addCleanup(item.stop)
 
+    def entry(self):
+        self.assertIn(SCRIPT, self.table, 'this contrast needs the candidate entry')
+        return self.table[SCRIPT]
+
     def classify(self, command, tool='Bash'):
         return guard.decide({'tool_name': tool, 'cwd': str(self.root), 'tool_input': {'command': command}})
 
@@ -129,14 +146,14 @@ class FreezeExemption(unittest.TestCase):
         value = self.classify(command, tool)
         self.assertEqual(value['kind'], 'allow', (command, value))
 
-    # --- the admitted operation (baseline red) ---
+    # --- the admitted operation (baseline red: the baseline has no entry) ---
 
     def test_exact_refused_metadata_freeze_command_is_admitted(self):
         for tool in ('Bash', 'PowerShell'):
             with self.subTest(tool=tool):
                 self.assert_allowed(REFUSED, tool)
 
-    # --- what the exemption must not cover ---
+    # --- what the exemption must not cover (protected under both guards) ---
 
     def test_only_the_freeze_verb_is_admitted(self):
         for verb in ('prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore', ''):
@@ -155,13 +172,25 @@ class FreezeExemption(unittest.TestCase):
             with self.subTest(tail=tail):
                 self.assert_protected(FREEZE + tail)
 
+    def test_relative_script_after_a_directory_change_is_never_exempt(self):
+        # Review 2026-11-10: the shell runs the relative path from the cd target, the hook resolved it from the
+        # session cwd first; an unpinned copy at the target would run under the pinned copy's exemption.
+        other = self.root.parent / 'scratch' / SCRIPT
+        other.parent.mkdir(parents=True)
+        other.write_bytes(CONTROLLER + b'# unpinned copy\n')
+        for prefix in ('cd ../scratch; ', 'cd "../scratch" && ', 'Set-Location ../scratch; ', 'sl ../scratch; ',
+                       'pushd ../scratch; ', 'Push-Location ../scratch; ', 'chdir ../scratch; '):
+            with self.subTest(prefix=prefix):
+                self.assert_protected(prefix + FREEZE)
+                self.assert_protected(prefix + REFUSED, 'PowerShell')
+
     def test_changed_controller_bytes_revoke_the_exemption(self):
         self.script.write_bytes(CONTROLLER + b'\n# one more line\n')
         self.assert_protected(FREEZE)
         self.assert_protected(REFUSED)
 
     def test_changed_or_missing_dependency_revokes_the_exemption(self):
-        for name in DEPENDENCIES:
+        for name in self.entry()['dependencies']:
             path = self.root / name
             original = path.read_bytes()
             with self.subTest(name=name, change='edited'):
@@ -176,7 +205,7 @@ class FreezeExemption(unittest.TestCase):
     def test_dependency_outside_the_root_never_qualifies(self):
         outside = self.root.parent / 'outside.py'
         outside.write_bytes(b'# authored\n')
-        self.entry['dependencies']['../outside.py'] = digest(outside)
+        self.entry()['dependencies']['../outside.py'] = digest(outside)
         self.assert_protected(FREEZE)
 
     def test_same_named_script_elsewhere_is_not_exempt(self):

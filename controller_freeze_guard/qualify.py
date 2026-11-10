@@ -95,7 +95,7 @@ class Scope(unittest.TestCase):
         source = (HERE / 'candidate.py').read_text()
         for digest in pins.values():
             self.assertEqual(source.count(digest), 1, digest)
-        self.assertEqual(len(pins), 5)
+        self.assertEqual(len(pins), 11)
 
 
 def run(suite):
@@ -116,7 +116,7 @@ def main():
     tests = load(HERE / 'test_candidate.py', 'freeze_frozen_tests')
     tests.guard = load(BASELINE, 'freeze_exact_baseline')
     positive = unittest.TestSuite([
-        tests.Pins('test_registry_pins_the_real_controller_and_its_four_direct_dependencies'),
+        tests.Pins('test_registry_pins_the_real_controller_and_its_reviewed_dependencies'),
         tests.FreezeExemption('test_exact_refused_metadata_freeze_command_is_admitted')])
     red = run(positive)
     if (red['methods'], red['failures'], red['errors']) != (2, 3, 0):

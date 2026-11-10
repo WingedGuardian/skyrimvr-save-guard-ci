@@ -3,5 +3,11 @@
  "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_run.py": "9f269bdbd1b5edc6984b0576028e496c5d7000562de052557516d2d9f259b777",
  "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controlled_profile.py": "e8298de90d41159f264273684341b9955ee1d496484ad2672a7ca23fa8eeba3b",
  "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/goal_launch_authority.py": "061180c63590df4574fdc6306411ad4e00534808b8cc72d68e6a91f78c5f6bce",
- "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/install-native.py": "13edef5dff9d560210039b39c9b41524ddc1bb84f97f0d143eaaf29dd9da6cd0"
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/install-native.py": "13edef5dff9d560210039b39c9b41524ddc1bb84f97f0d143eaaf29dd9da6cd0",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/io.py": "8e8860b77c948ce493edf19dd71cb6b898b2e6b1e753101cffdd31ff13400c8b",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/reference_adapter.py": "3c419adf0db6690fda3b88959c6f8f343986966c9a613c385e56ec2f8d1c90be",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/reference_preservation.py": "b0518e8484837d794b314304f8919b80a9e42b0ba6a23a636c0bcd16f049d4d7",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/context.py": "c7ac74929a71f662e31182798b7faf266f729be57206d012b47c960c838285b4",
+ "_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/session.py": "f2b8d417adb4da5063b90c98c5e6ab8398da77a3d81231c82c7d7bd9b75454bc",
+ "tools/vr-headless.py": "c00fda353828460b09b177adc924d4bc7995562d81d34856abfdb169f036618a"
 }
