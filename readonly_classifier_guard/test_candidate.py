@@ -233,7 +233,11 @@ class Classifier(unittest.TestCase):
                            ('Bash', 'echo "`' + remove + " -rf '" + folder + "'`\""),
                            ('Bash', 'sleep 1 & ' + remove + " -rf '" + folder + "' & wait"),
                            ('PowerShell', "echo 'literal' & Remove-Item -Recurse '" + folder + "'"),
-                           ('PowerShell', "Get-Date & rd -Recurse '" + folder + "'")):
+                           ('PowerShell', "Get-Date & rd -Recurse '" + folder + "'"),
+                           # a cd before the substitution moves where it runs (two levels: it differs from cwd)
+                           ('Bash', "cd '" + self.protected.parent.parent.as_posix() + "' && echo `" + remove + " -rf '"
+                            + self.protected.parent.name + '/' + self.protected.name + "'`"),
+                           ('Bash', 'echo "<<\n" & ' + remove + " -rf '" + folder + "'")):
             with self.subTest(tool=tool, text=text):
                 self.assert_protected(text, tool)
         for tool, text in (('Bash', "echo 'a' & echo 'b'"), ('Bash', 'sleep 1 & wait'), ('Bash', 'echo `date`'),

@@ -70,8 +70,11 @@ this is a preexisting gap, not one 223e introduced. folder_violation now also
 splits each command on a lone `&` (_command_units; a heredoc body stays with
 its command) and judges every backtick/$() substitution as its own command.
 Method 20 pins the rm/Remove-Item spellings plus composed commands that stay
-allowed. Decision-only probe of this head: 10 composed deletes refused, 7
-ordinary controls allowed. No passing CI result exists for this head yet.
+allowed. Review (toolkit, 2026-11-09) then found a substitution judged from the
+original cwd (a cd before it was ignored) and a quoted `<<` disabling the split;
+both fixed: each substitution is judged from its own command's cwd. Decision-only
+probe of this head: 13 composed deletes refused, 7 ordinary controls allowed.
+No passing CI result exists for this head yet.
 
 Deployment gate
 The user approved preparing an isolated fix with independent review and green

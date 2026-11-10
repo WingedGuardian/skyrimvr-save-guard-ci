@@ -943,7 +943,8 @@ def _command_units(text):
     rm -rf Saves` is two commands. A heredoc body stays with the last command on its first line."""
     units = []
     for segment, _ in split_segments(text):
-        first, sep, body = segment.partition('\n') if '<<' in segment else (segment, '', '')
+        heredoc = '<<' in _masked(segment)              # a quoted `<<` is not a heredoc (`<<'EOF'` keeps its `<<`)
+        first, sep, body = segment.partition('\n') if heredoc else (segment, '', '')
         parts = _split_on_ampersand(first) or [first]
         parts[-1] = parts[-1] + sep + body
         units.extend(parts)
@@ -954,15 +955,15 @@ def folder_violation(text, cwd, _depth=0):
     """A delete/move/rename whose target is a whole Saves folder, a parent of one, or the
     backup store (or anything inside the store). Never approvable."""
     text = _rd_interpreter_view(text)
-    # Backticks and $(...) run their commands (2026-11-09: `` echo `rm -rf Saves` `` was allowed). A substitution is
-    # judged from where the command starts; a cd inside it does not move the outer command.
-    if _depth < 3:
-        for code in _substitutions(_without_heredoc_bodies(text)):
-            found = folder_violation(code, cwd, _depth + 1)
-            if found:
-                return found
     vcwd = cwd
     for segment in _command_units(text):
+        # Backticks and $(...) run their commands (2026-11-09: `` echo `rm -rf Saves` `` was allowed). Each is judged
+        # from where its own command runs: an earlier cd moves it, a cd inside it does not move the outer command.
+        if _depth < 3:
+            for code in _substitutions(_without_heredoc_bodies(segment)):
+                found = folder_violation(code, vcwd, _depth + 1)
+                if found:
+                    return found
         word, args = first_word(segment)
         words = unquoted_words(segment)
         if word in ('cd', 'pushd', 'set-location', 'sl', 'chdir') and len(words) > 1:

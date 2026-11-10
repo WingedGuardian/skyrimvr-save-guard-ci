@@ -39,7 +39,7 @@
      text = tool + '\n' + text
      for label, pattern in [
              ('delete', r'remove-item|\bunlink\b|\brmtree\b|\brm\b|\bdel\b|\berase\b|\brmdir\b|\brd\b|os\.remove'
-@@ -932,11 +938,31 @@
+@@ -932,11 +938,32 @@
      return [str(d) for d in KNOWN_SAVE_DIRS] + [str(BACKUP_ROOT)]
  
  
@@ -49,7 +49,8 @@
 +    rm -rf Saves` is two commands. A heredoc body stays with the last command on its first line."""
 +    units = []
 +    for segment, _ in split_segments(text):
-+        first, sep, body = segment.partition('\n') if '<<' in segment else (segment, '', '')
++        heredoc = '<<' in _masked(segment)              # a quoted `<<` is not a heredoc (`<<'EOF'` keeps its `<<`)
++        first, sep, body = segment.partition('\n') if heredoc else (segment, '', '')
 +        parts = _split_on_ampersand(first) or [first]
 +        parts[-1] = parts[-1] + sep + body
 +        units.extend(parts)
@@ -60,20 +61,20 @@
      """A delete/move/rename whose target is a whole Saves folder, a parent of one, or the
      backup store (or anything inside the store). Never approvable."""
 +    text = _rd_interpreter_view(text)
-+    # Backticks and $(...) run their commands (2026-11-09: `` echo `rm -rf Saves` `` was allowed). A substitution is
-+    # judged from where the command starts; a cd inside it does not move the outer command.
-+    if _depth < 3:
-+        for code in _substitutions(_without_heredoc_bodies(text)):
-+            found = folder_violation(code, cwd, _depth + 1)
-+            if found:
-+                return found
      vcwd = cwd
 -    for segment, _ in split_segments(text):
 +    for segment in _command_units(text):
++        # Backticks and $(...) run their commands (2026-11-09: `` echo `rm -rf Saves` `` was allowed). Each is judged
++        # from where its own command runs: an earlier cd moves it, a cd inside it does not move the outer command.
++        if _depth < 3:
++            for code in _substitutions(_without_heredoc_bodies(segment)):
++                found = folder_violation(code, vcwd, _depth + 1)
++                if found:
++                    return found
          word, args = first_word(segment)
          words = unquoted_words(segment)
          if word in ('cd', 'pushd', 'set-location', 'sl', 'chdir') and len(words) > 1:
-@@ -978,7 +1004,7 @@
+@@ -978,7 +1005,7 @@
              if under(target, BACKUP_ROOT):
                  return 'Save backups are kept forever: deleting, moving or renaming them is blocked.'
              for d in protected_dirs():
@@ -82,7 +83,7 @@
                      return 'This removes or moves a folder that contains saves or save backups; blocked, approval or not.'
          if RECURSIVE.search(segment) and FOLDER.search(segment) and operation(segment, 'Bash') != 'delete':
              return 'A recursive move inside a Saves folder is blocked. Name the save files instead.'
-@@ -1059,6 +1085,7 @@
+@@ -1059,6 +1086,7 @@
      """For find -delete / find -exec rm and recursive deletes that reach saves:
      ('set', files) when the hook can count the matches now, ('uncountable', why), or None
      when the command is not such a delete. Whole-folder targets were refused before this."""
@@ -90,7 +91,7 @@
      vcwd, applies, files = cwd, False, set()
      deadline = time.monotonic() + 5.0
      for segment, _ in split_segments(text):
-@@ -1679,6 +1706,7 @@
+@@ -1679,6 +1707,7 @@
      """`rm -rf "<My Games>/*"`: a recursive wildcard delete in a folder ABOVE a save folder takes the whole Saves
      folder with it. Deleting that folder by name is already refused (folder_violation); its contents by wildcard
      were not (both guards allowed it, found 2026-10-30)."""
@@ -98,7 +99,7 @@
      if not RECURSIVE.search(text) or operation(text, 'Bash') != 'delete':
          return []
      # Strictly ABOVE: `Saves/*` itself stays the approvable bulk change the rest of the guard counts.
-@@ -1957,6 +1985,365 @@
+@@ -1957,6 +1986,365 @@
              if re.fullmatch(r'-c(?:ommand)?', w, re.I):
                  return _joined(args[i + 1:])
      return None
@@ -464,7 +465,7 @@
  
  
  def _tar_writes(args):
-@@ -2462,6 +2849,13 @@
+@@ -2462,6 +2850,13 @@
          return decision('deny', reason=LOCK_SWITCH_DENY)
      if re.search(r'-(?:encodedcommand|enc)\b|base64\s+-d.*\|\s*(?:bash|sh|python)', text, re.I):
          return decision('deny', reason='Encoded executable commands cannot be checked for save access and are blocked.')
@@ -478,7 +479,7 @@
      native_adapter = native_adapter_call(text, cwd, base)
      if native_adapter is not None:
          return native_adapter
-@@ -2563,7 +2957,8 @@
+@@ -2563,7 +2958,8 @@
                              why='An invoked script drives in-game save/load through DevBench.', **base)
          # A script that can write counts when its code spells a save LOCATION, or when this command hands it one.
          # A bare .ess mention in its code does not: native_batch_run.py names `.ess` only to REFUSE touching saves.
