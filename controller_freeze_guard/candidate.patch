@@ -28,7 +28,7 @@
   'tools/housekeep.py': {'sha256': {'388db95fcfff7aec90d88bf0045c85244bb18906f590e81c774083ea501ad556'},
                          'verbs': {'', '--help', 'version', '-h', 'plan', 'report'},
                          'plan_verbs': {'apply'}}}
-@@ -344,7 +365,47 @@
+@@ -344,7 +365,46 @@
  # User-approved 2026-10-29: configuration/owned-session operations, NOT save
  # operations. Pair creation/loading remains a separate protected CLI invocation.
  # This is not a launch approval; the lifecycle still checks its one-run consent.
@@ -61,7 +61,6 @@
 +                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/single_owner_exit.py': 'f78a3fe5a277a1167a273756a2e742ef03ff866191b9b4c34fcc2d615de40531',
 +                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/managed_owner.py': 'f8864adcedca272d51baf6f5d331c8cf6f50df37e6edc8ad02196a373904be96',
 +                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/process_identity.py': '09ede27b72c2302a2f8bda4878367fe0dfcdc43e83e20c262d46812526c54325',
-+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/qualification.py': '54a209d9a44451c939d72171303e8dacbb415ce2e1bb9d19beb2d7b85e619cd3',
 +                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/recovery.py': 'a5d7b65ced155154b42eef48fe26e6e96182fabcffb088b88a563e16fe95171e',
 +                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/inventory.py': '3defe79cd3e8dec933fba2c0ee3787e17cdc8f328dbd1c9425833b73614d5ee6',
 +                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/__init__.py': '16a3bcf07fbc16e5eaf92f5235085c778af3ab4594da27668db0f9c134e45b8f',
@@ -77,7 +76,7 @@
                                                                                        'verbs': {'preflight',
                                                                                                  'prepare',
                                                                                                  'publish',
-@@ -505,6 +566,24 @@
+@@ -505,6 +565,24 @@
          return False
  
  
@@ -102,7 +101,7 @@
  def read_only_script_call(script, raw, text, cwd='.', tool=None):
      """Recognize pinned read-only calls, verified non-save plans, or the exact
      user-approved non-save lifecycle. This never grants launch/load consent."""
-@@ -520,6 +599,13 @@
+@@ -520,6 +598,13 @@
      # EVERY occurrence of the script in the command must be a read-only call: `plan && apply` is an apply.
      starts = [m.end() for m in re.finditer(re.escape(raw), text)]
      if not starts:

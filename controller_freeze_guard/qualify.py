@@ -100,7 +100,7 @@ class Scope(unittest.TestCase):
             self.assertEqual(source.count(digest), before.count(digest) + 2, digest)
         for digest in lifecycle.values():
             self.assertEqual(source.count(digest), before.count(digest) + 1, digest)
-        self.assertEqual((len(pins), len(lifecycle)), (11, 20))
+        self.assertEqual((len(pins), len(lifecycle)), (11, 19))
 
 
 def run(suite):

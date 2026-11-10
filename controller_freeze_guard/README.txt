@@ -64,7 +64,9 @@ REVIEWED_NON_SAVE_LIFECYCLE entry for the same controller bytes with the nine li
 pins plus nine lifecycle helpers (lifecycle-pins.json). Same category the user approved for
 native_batch_run on 2026-10-29: configuration and owned-session operations, not save operations;
 pair creation and loading stay direct calls to the qualified ReSaver binding. The bare-call rule
-applies to these verbs too.
+applies to these verbs too. gateway_test_support/qualification.py is deliberately NOT pinned (v11): it pins
+the guard's own hash, so pinning it here is circular and revokes the entry on every consumed-pin refresh
+(measured 2026-11-10 with v10). It only hashes files and raises.
 
 What this is not
 Not a general read-only Python exemption, not a launch/load consent, not an unpin of any
