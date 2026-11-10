@@ -183,6 +183,14 @@ class FreezeExemption(unittest.TestCase):
             with self.subTest(prefix=prefix):
                 self.assert_protected(prefix + FREEZE)
                 self.assert_protected(prefix + REFUSED, 'PowerShell')
+        # the directory change written inside a quoted inner command, or without the word (review 2026-11-10 v2)
+        for composed in ("bash -c 'cd ../scratch; " + FREEZE + "; true'",
+                         'pwsh -Command "cd ../scratch; ' + FREEZE + '"',
+                         '& {cd ../scratch; ' + FREEZE + '}',
+                         'env -C ../scratch ' + FREEZE,
+                         'env --chdir=../scratch ' + FREEZE):
+            with self.subTest(command=composed):
+                self.assert_protected(composed, 'PowerShell')
 
     def test_changed_controller_bytes_revoke_the_exemption(self):
         self.script.write_bytes(CONTROLLER + b'\n# one more line\n')

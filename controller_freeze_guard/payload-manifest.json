@@ -14,12 +14,12 @@
  ],
  "review": "independent read-only review 2026-11-10 (findings 1-3 fixed: test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; 4-6 recorded as limits)",
  "files": {
-  "README.txt": "304674194cd2ed5907d2bf6153bb5e8da8347f6a4d6ca79a8a164497c6635b66",
-  "qualify.py": "d75aed6c15b76bb6e3767e6b8fa9011695ed61ed9cfaa156f96c067d2745dc12",
-  "test_candidate.py": "8a97c1517e6844e43b48048550238c03033078714360dd31e4a4ce9f07f4502d",
-  "project-pins.json": "19251e860e9b58a8504cb524a14eeee93e4ce27449a6f695ffc55b074724ed27",
-  "candidate.py": "11a6ecfc741a206f68eadac7d983ee957e75132ed61bba2b1a11cbb9b1df13f2",
-  "candidate.patch": "d1c86121cf68aae21f481da0fdcc67cefb0e7d541cca574ee8b8d18d6ff1b703",
+  "README.txt": "9646704fb56b5b63753c9566b6eb35d01236320d6352d10e0fe528aee75c69f3",
+  "qualify.py": "526914c6b8dd6d2c8c726c3a5478dc2c477bd27d0fe76e829247d0c3b16ed07d",
+  "test_candidate.py": "b67badf77f6ca66bdd5b92359f8a148b46518eb81524b46da57b8eea61dcb202",
+  "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
+  "candidate.py": "93957130052d22b1084d94f39e35ce74aa5ca9e4b227575da07642b328c34165",
+  "candidate.patch": "fb1d751f6dda0cee2b628055c11791f2d038320142d5da7591cd06da0f24aa9a",
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
  },
  "supporting_inputs": {
@@ -36,11 +36,12 @@
  },
  "native_acceptance": false,
  "limits": [
-  "The five pinned gateway files are NOT in this repository; CI proves the mechanism on authored stand-ins and that the entry carries exactly the reviewed hashes (project-pins.json). The live decision-only probe at deploy time proves the real bytes.",
+  "The eleven pinned gateway files are NOT in this repository; CI proves the mechanism on authored stand-ins and that the entry carries exactly the reviewed hashes (project-pins.json). The live decision-only probe at deploy time proves the real bytes.",
   "A freeze argument naming a configured save folder that does not contain the word Saves is a pre-existing _read_only_tail limit shared with every exempt script; the real folders here all contain it.",
   "The local test run on the install is expected to be refused by the installed guard (the test source spells save locations and deletes); results come from CI only.",
   "Cached bytecode (__pycache__/*.cpython-310.pyc) of pinned modules is not pinned; -B stops writing, not reading. Pre-existing for every exempt script; the inert fixture packet pins caches for its own entry.",
-  "gateway_test_support/qualification.py (consumed-host pins, read-only by construction) and the non-sampling campaign branch modules are deliberately not pinned: the former must change to admit the newly deployed guard and pinning it here would be circular; the latter is not the branch selected by the sampling extra-inputs.",
+  "gateway_test_support/qualification.py (consumed-host pins, read-only by construction) is deliberately not pinned: it must change to admit the newly deployed guard and pinning it here would be circular.",
+  "freeze chooses its branch from extra-inputs.json at run time; the non-sampling (40-case) branch loads campaign/fixture modules that are NOT pinned here, so the exemption admits that branch with unreviewed helpers. The intended run is the sampling branch; a later normal-case freeze needs those modules added to the pin.",
   "Tool labels tested are Bash and PowerShell (both in SHELL_TOOLS); Codex reports canonical Bash for exec_command. A list-valued command is not modeled."
  ]
 }

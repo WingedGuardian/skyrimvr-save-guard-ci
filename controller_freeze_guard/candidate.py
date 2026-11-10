@@ -344,7 +344,7 @@ READ_ONLY_SCRIPT_VERBS = {'_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-202
  # six support modules that do its writes, preservation reads and cold-state check (review 2026-11-10). A change to any
  # of them revokes this entry (fail closed), as happened to the native_batch_run.py entry above.
  '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controller.py': {
-     'sha256': {'d7849a51e17710f718eaec527a16beee9c80248eeed4d50811685434af619198'},
+     'sha256': {'3191462d2657c0ee78a6b94d3891afb69157da718bda865baa492f6ea42182c0'},
      'verbs': {'freeze'},
      'dependencies': {
                       '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_run.py': '9f269bdbd1b5edc6984b0576028e496c5d7000562de052557516d2d9f259b777',
@@ -546,9 +546,12 @@ def read_only_script_call(script, raw, text, cwd='.', tool=None):
     # A relative script token runs where the SHELL is when it executes, which a `cd` earlier in the command changes,
     # while the hook resolves it against the session cwd first. No exemption for a relative token in a command that
     # changes directory (review 2026-11-10: `cd <scratch>; python _CLAUDE_OUTPUT/.../controller.py freeze` would be
-    # judged by the pinned install copy and run an unpinned one); ordinary inspection still runs on it.
-    if not Path(raw).is_absolute() and re.search(r'(?:^|[\s;&|(])(?:cd|chdir|set-location|sl|pushd|push-location)\b',
-                                                 text, re.I):
+    # judged by the pinned install copy and run an unpinned one); ordinary inspection still runs on it. The word may
+    # sit inside a quoted inner command (`bash -c 'cd x; ...'`, `pwsh -Command "cd x; ..."`, `& {cd x; ...}`), so any
+    # non-word neighbour counts, and GNU env -C/--chdir and -WorkingDirectory change directory without the word.
+    if not Path(raw).is_absolute() and re.search(
+            r'(?<![\w.-])(?:cd|chdir|set-location|sl|pushd|push-location)(?![\w-])'
+            r'|\benv\b[^;&|\n]*\s(?:-C|--chdir)\b|-workingdirectory\b', text, re.I):
         return False
     return any(
         (not spec.get('exact_desktop_args') or (len(starts) == 1 and not re.search(r'[;&|\r\n`]', text)))

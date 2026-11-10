@@ -92,9 +92,10 @@ class Scope(unittest.TestCase):
 
     def test_new_entry_pins_exactly_the_reviewed_bytes(self):
         pins = json.loads((HERE / 'project-pins.json').read_bytes())
-        source = (HERE / 'candidate.py').read_text()
+        source, before = (HERE / 'candidate.py').read_text(), BASELINE.read_text()
         for digest in pins.values():
-            self.assertEqual(source.count(digest), 1, digest)
+            # exactly one NEW occurrence: a pinned helper may already appear in an older entry (vr-headless.py does)
+            self.assertEqual(source.count(digest), before.count(digest) + 1, digest)
         self.assertEqual(len(pins), 11)
 
 

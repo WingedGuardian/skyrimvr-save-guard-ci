@@ -76,6 +76,16 @@ SHELL_TOOLS; Codex reports canonical Bash; recorded). 6 INFO: the here-string ha
 refused command is admitted only because it spells no save location; its code
 (sampling_entry, write_new) is the gateway's own reviewed source, not guard-admitted.
 
+Follow-up review of v2 (same reviewer): v2 fixes confirmed; the Scope pin-count check tripped
+on tools/vr-headless.py, whose hash already sits in two older entries (now: exactly one NEW
+occurrence per pin, counted against the baseline); the cd rule missed a directory change
+written inside a quoted inner command (`bash -c 'cd ..'`, `pwsh -Command "cd .."`, `& {cd ..}`)
+and the wordless forms `env -C/--chdir` (rule widened to any non-word neighbour plus those
+forms; contrasts added). `Start-Process -WorkingDirectory` is not modeled: the hook does not
+recognise a script token inside -ArgumentList, so that shape is judged by the ordinary rules
+only. v3 also re-pins controller.py after a gateway-owned change to its launch-approval
+validation (a recorded per-launch user answer for Claude-owned runs; freeze() untouched).
+
 Local run
 Running test_candidate.py on the install is expected to be refused by the installed guard
 (its source spells save locations and deletes, by design of the controls). Results come
