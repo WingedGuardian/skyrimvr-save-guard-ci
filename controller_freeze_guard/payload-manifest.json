@@ -17,12 +17,12 @@
  "review": "independent read-only reviews 2026-11-10: v1 (test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; bytecode/tool-label limits), v2 (Scope pin count, quoted inner commands), v4 (word list beaten -> allow-list by shape), v5 (wrong composed-tail expectation fixed; value-less interpreter flags only; pre-existing gaps recorded below)",
  "files": {
   "README.txt": "3b2a59ec7006c0a00c28cbe9bc9dea1e1374d825848fa77efefd325aee3a396a",
-  "qualify.py": "596a9acdd86e7db916dbaac7c6413f3ee178b86ddb488e9eb5fe4ab6084df9af",
+  "qualify.py": "1fc18efdb3333bf9351ab98400d62b7e4bce9665f818b0ad7e26a2b6a29c276e",
   "test_candidate.py": "750900b5d3a03d3fd09898b6520030eb375fd783a43d67e227f6c02872256a26",
   "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
-  "lifecycle-pins.json": "8a3f63b8dcefadc2b8a9c9dbad16f76c45b5a0ae4ae871c3c192014cc25b51f5",
-  "candidate.py": "1840a9e4a91c90f16cdf0e91fca9b44c577c9ccbfd4d722a226b52a48b446266",
-  "candidate.patch": "a462148beb531af62f4301688e243246d5d59a649f304466a531c000695e1c19",
+  "lifecycle-pins.json": "fbe59a086a4bad3003f25f4effaa1ab3a590f3a902010598f7315a9ca2fe3b76",
+  "candidate.py": "e0e4e7688387bca8686d9d60e7463d56f41b85ca53b1a35650888426d2fe1b7b",
+  "candidate.patch": "63373419e0d567b155a37545f623cd2ee2093b86222e64dff88ad9387b19dc73",
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
  },
  "supporting_inputs": {

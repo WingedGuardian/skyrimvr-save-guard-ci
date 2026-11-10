@@ -16,8 +16,7 @@ deps = ''.join("                      %r: %r,\n" % (k, v) for k, v in pins.items
 entry = """ # Gateway loaded-engine parent (user ruling 2026-11-10, option A): `controller.py freeze` writes run METADATA only
  # (frozen source hashes, publication/profile PLANS with application disabled, a pair REQUEST for the separately guarded
  # qualified binding). It spells the save folder because it hashes the source pair and checks the destination pair is
- # absent, which are reads. Every other verb (prepare, publish, profile, preflight, run, menu-ready, loaded, stop,
- # restore) stays under ordinary inspection. Pinned: the script, the four modules its freeze path calls into, and the
+ # absent, which are reads. The lifecycle verbs have their own REVIEWED_NON_SAVE_LIFECYCLE entry. Pinned: the script, the four modules its freeze path calls into, and the
  # six support modules that do its writes, preservation reads and cold-state check (review 2026-11-10). A change to any
  # of them revokes this entry (fail closed), as happened to the native_batch_run.py entry above.
  %r: {

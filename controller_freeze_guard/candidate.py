@@ -339,8 +339,7 @@ READ_ONLY_SCRIPT_VERBS = {'_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-202
  # Gateway loaded-engine parent (user ruling 2026-11-10, option A): `controller.py freeze` writes run METADATA only
  # (frozen source hashes, publication/profile PLANS with application disabled, a pair REQUEST for the separately guarded
  # qualified binding). It spells the save folder because it hashes the source pair and checks the destination pair is
- # absent, which are reads. Every other verb (prepare, publish, profile, preflight, run, menu-ready, loaded, stop,
- # restore) stays under ordinary inspection. Pinned: the script, the four modules its freeze path calls into, and the
+ # absent, which are reads. The lifecycle verbs have their own REVIEWED_NON_SAVE_LIFECYCLE entry. Pinned: the script, the four modules its freeze path calls into, and the
  # six support modules that do its writes, preservation reads and cold-state check (review 2026-11-10). A change to any
  # of them revokes this entry (fail closed), as happened to the native_batch_run.py entry above.
  '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controller.py': {
@@ -394,6 +393,17 @@ REVIEWED_NON_SAVE_LIFECYCLE = {
                       '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/single_owner_exit.py': 'f78a3fe5a277a1167a273756a2e742ef03ff866191b9b4c34fcc2d615de40531',
                       '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/managed_owner.py': 'f8864adcedca272d51baf6f5d331c8cf6f50df37e6edc8ad02196a373904be96',
                       '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/process_identity.py': '09ede27b72c2302a2f8bda4878367fe0dfcdc43e83e20c262d46812526c54325',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/qualification.py': '54a209d9a44451c939d72171303e8dacbb415ce2e1bb9d19beb2d7b85e619cd3',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/recovery.py': 'a5d7b65ced155154b42eef48fe26e6e96182fabcffb088b88a563e16fe95171e',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/inventory.py': '3defe79cd3e8dec933fba2c0ee3787e17cdc8f328dbd1c9425833b73614d5ee6',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/gateway_test_support/__init__.py': '16a3bcf07fbc16e5eaf92f5235085c778af3ab4594da27668db0f9c134e45b8f',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/native-feasibility-2026-10-26/isolation.py': '545c7ce0fd7b650d5c166dc6c0e2a8708b76749146969c3fab8b29e0d5e569b4',
+                      'tools/vr_background_desktop.py': 'b18838010e4ba655ce53ca061884bcf77de0777be2166aecdfa7cb2e3eea1738',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/guardian_recovery_migration.py': '8b6ca7a21c63ff88563b2f33654c149928ff5808840ca3a084c8eee08b733c74',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/guardian_route_plan.py': '9adc3d710ab6fc0ccdd51aa7b7fa3e1516c563b454f6a527709b3c768b457258',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/menu_config_campaign.py': 'f27453de5af9724447180b244bca97e26c14058413a92b1e68d8d5d5963982e5',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/probe_run_binding.py': 'c7cd2d7b1ae6161e83557b3b34cf767114f4d7aa38b7d0047e6395539edcce66',
+                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/config_probe_session.py': 'bfde2895603fb11ab2d4f48de566bebe691de7e1f743ae7efd888fa53f4c1998',
                       }},
 '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_batch_run.py': {'sha256': {'f23292ab096f77152ba44c3a69ae747b31851d2d81c806079644546e1a7d678d'},
                                                                                       'verbs': {'preflight',
