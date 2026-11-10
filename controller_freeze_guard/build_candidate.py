@@ -78,6 +78,15 @@ rule = anchor2 + """    # A RELATIVE script token runs where the SHELL is when i
     # path, which no directory change can redirect. Ordinary inspection still runs on a composed relative call.
     if not Path(raw).is_absolute() and not _bare_single_call(raw, text):
         return False
+    # The script token must END where the shell ends the word: after at most one closing quote, a space, a tab or
+    # the end of the text. `'<abs>'freeze` (Bash: one word, <abs>freeze) or a character Python splits on and the
+    # shell does not (U+001C, U+00A0) would otherwise run a DIFFERENT file under this file's exemption (review v12).
+    for at in starts:
+        rest = text[at:]
+        if rest[:1] in ('"', "'"):
+            rest = rest[1:]
+        if rest and rest[0] not in (' ', chr(9)):
+            return False
 """
 s = s.replace(anchor2, rule)
 

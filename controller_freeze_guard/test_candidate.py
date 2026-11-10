@@ -299,6 +299,17 @@ class FreezeExemption(unittest.TestCase):
         other.parent.mkdir()
         other.write_bytes(CONTROLLER)
         self.assert_protected("python -B 'elsewhere/controller.py' freeze")
+        # Review 2026-11-10 (v12): a verb glued to the closing quote, or after a character Python treats as
+        # whitespace and the shell does not, runs a DIFFERENT file (Bash: '<abs>'freeze -> <abs>freeze).
+        path = str(self.script)
+        sep = chr(0x1c)
+        nbsp = chr(0xa0)
+        for glued in ("python -B '" + path + "'freeze", 'python -B "' + path + '"freeze',
+                      'python -B ' + path + sep + 'freeze', 'python -B ' + path + nbsp + 'freeze',
+                      'python -B "' + path + '"' + sep + 'freeze'):
+            with self.subTest(glued=glued[-14:]):
+                self.assert_protected(glued)
+        self.assert_allowed(self.absolute())
 
     def test_direct_save_changes_in_the_same_command_stay_protected(self):
         for command in (FREEZE + "; Remove-Item 'modeled-protected-location/case-1.ess'",

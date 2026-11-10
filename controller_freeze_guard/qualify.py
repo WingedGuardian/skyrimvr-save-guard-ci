@@ -90,6 +90,31 @@ class Scope(unittest.TestCase):
             'a/protect-save-access.py', 'b/protect-save-access.py'))
         self.assertEqual((HERE / 'candidate.patch').read_text(), expected)
 
+    def test_pin_tables_are_the_baseline_plus_exactly_the_two_reviewed_entries(self):
+        # Replaces the retained 'tables unchanged' check (review 2026-11-10 v12: Pins/Scope alone let an extra
+        # unreviewed entry or verb through). Every other key of both tables must equal the baseline exactly.
+        def tables(file):
+            tree = ast.parse(Path(file).read_text(encoding='utf-8'))
+            return {n.targets[0].id: ast.literal_eval(n.value) for n in tree.body
+                    if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
+                    and n.targets[0].id in ('READ_ONLY_SCRIPT_VERBS', 'REVIEWED_NON_SAVE_LIFECYCLE')}
+        old, new = tables(BASELINE), tables(HERE / 'candidate.py')
+        self.assertEqual(set(old), {'READ_ONLY_SCRIPT_VERBS', 'REVIEWED_NON_SAVE_LIFECYCLE'})
+        script = '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controller.py'
+        pins = json.loads((HERE / 'project-pins.json').read_bytes())
+        lifecycle = json.loads((HERE / 'lifecycle-pins.json').read_bytes())
+        digest = pins.pop(script)
+        self.assertEqual(set(old), set(new))
+        for name in old:
+            self.assertNotIn(script, old[name])
+            self.assertEqual({k: v for k, v in new[name].items() if k != script}, old[name], name)
+        self.assertEqual(new['READ_ONLY_SCRIPT_VERBS'][script],
+                         {'sha256': {digest}, 'verbs': {'freeze'}, 'dependencies': pins})
+        self.assertEqual(new['REVIEWED_NON_SAVE_LIFECYCLE'][script],
+                         {'sha256': {digest}, 'exact_verb': True, 'dependencies': {**pins, **lifecycle},
+                          'verbs': {'prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded',
+                                    'stop', 'restore'}})
+
     def test_new_entry_pins_exactly_the_reviewed_bytes(self):
         pins = json.loads((HERE / 'project-pins.json').read_bytes())
         source, before = (HERE / 'candidate.py').read_text(), BASELINE.read_text()
@@ -176,7 +201,7 @@ def main():
         module = original_load(file, name)
         if hasattr(module, 'guard'):
             module.guard.ROOT = q.INPUTS
-            module.guard.RESTORE_HELPER = HERE.parent / 'readonly_classifier_guard/restore-save-backup.py'
+            module.guard.RESTORE_HELPER = HERE / 'restore-save-backup.py'
         return module
     q.load = candidate_load
     prior_code = q.main()

@@ -103,21 +103,30 @@
  def read_only_script_call(script, raw, text, cwd='.', tool=None):
      """Recognize pinned read-only calls, verified non-save plans, or the exact
      user-approved non-save lifecycle. This never grants launch/load consent."""
-@@ -520,6 +600,13 @@
-     # EVERY occurrence of the script in the command must be a read-only call: `plan && apply` is an apply.
+@@ -521,6 +601,22 @@
      starts = [m.end() for m in re.finditer(re.escape(raw), text)]
      if not starts:
-+        return False
+         return False
 +    # A RELATIVE script token runs where the SHELL is when it executes, and anything else in the command may have
 +    # moved it, while the hook resolves the token against the session cwd first (review 2026-11-10: `cd <scratch>;
 +    # python _CLAUDE_OUTPUT/.../controller.py freeze` would be judged by the pinned install copy and run an unpinned
 +    # one). A relative token is exempt only as one bare call; everything composed must name the script by ABSOLUTE
 +    # path, which no directory change can redirect. Ordinary inspection still runs on a composed relative call.
 +    if not Path(raw).is_absolute() and not _bare_single_call(raw, text):
-         return False
++        return False
++    # The script token must END where the shell ends the word: after at most one closing quote, a space, a tab or
++    # the end of the text. `'<abs>'freeze` (Bash: one word, <abs>freeze) or a character Python splits on and the
++    # shell does not (U+001C, U+00A0) would otherwise run a DIFFERENT file under this file's exemption (review v12).
++    for at in starts:
++        rest = text[at:]
++        if rest[:1] in ('"', "'"):
++            rest = rest[1:]
++        if rest and rest[0] not in (' ', chr(9)):
++            return False
      return any(
          (not spec.get('exact_desktop_args') or (len(starts) == 1 and not re.search(r'[;&|\r\n`]', text)))
-@@ -575,6 +662,9 @@
+         and all(_read_only_tail(spec, text[at:], cwd) for at in starts)
+@@ -575,6 +671,9 @@
      if spec.get('exact_desktop_args'):
          return (len(words) == 3 and words[0] in spec['verbs']
                  and words[1] == '--desktop' and words[2] in ('pending', 'current', 'background'))
