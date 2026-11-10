@@ -24,7 +24,7 @@
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
  },
  "supporting_inputs": {
-  ".github/workflows/qualify.yml": "8c3000147accff43db57f77646a852b49860f7ee4acf23baed0621eedba57322",
+  ".github/workflows/qualify.yml": "55adb5223658b0a1f18a1aad08a149d5f2e35391f7c2d279d4494d0721375d94",
   ".gitattributes": "4c2bf40f62560d1637799d3bd85ba152011851759a7efdd52d36a33c8d4b8ca3",
   "gateway_guard/qualify.py": "b87795cc901d9360dfbae77e088cf433b17a6cdb77f2c4186d9c04c5dd7b088a",
   "readonly_classifier_guard/restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c"
@@ -33,7 +33,7 @@
   "gateway_guard/payload-manifest.json": "50ce7331e220acacf56ef8f0ed7406787ff13c4299a4169ec43c5ec5bb964fae",
   "inert_fixture_guard/payload-manifest.json": "57d1928e5ed8ea47d3a68c3081f00540342a9780e1e8989f7ae238dfe6f39977",
   "native_adapter_guard/payload-manifest.json": "8968281a431f37bd33a4f100983ed0f4d5ec4d1198e239b59110e69b5ebc9734",
-  "readonly_classifier_guard/payload-manifest.json": "c9889cf886f25cc284acc8420264a8b20f5836128f498e548267c41290af8a8d"
+  "readonly_classifier_guard/payload-manifest.json": "f9d9bf4d7e7f2d2b33329b513b020a2625a197b45d6414a56766548de9a22757"
  },
  "native_acceptance": false,
  "limits": [
