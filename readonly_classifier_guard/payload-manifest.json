@@ -24,17 +24,19 @@
     "recursive_wildcard_above_saves"
   ],
   "files": {
-    "README.txt": "27c46f93bad68a70c9ff9756b4c4742e8a3a0ff16e6fe7d546fcf3334086f117",
+    "README.txt": "b98af08ecbd1e03c2a5e461eaacbc3871dfb466c3e8e667a09ba97a4ec70c30f",
     "qualify.py": "5caee787a9fae8501d999891c5c5e1e487800173a5432dd3b7d8ca1a26fdc6fa",
     "test_candidate.py": "5ec57db9f1f17bd52b8bb41c07404762eea2dc7ee7ef0553a023c33b2ab9bca9",
     "reader-input.txt": "2e3e5603b17eedca27185a71d97cd768e71351dd48f75b33be994310f31be4e5",
     "report-input.json": "0073540d99871f5a2ced2902a569b43d17786d6f3783b95c85b0c0e28a5788a3",
     "restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c",
     "candidate.py": "f4c63770f2533bdc118dfca3080f8c062865ef9b8b79e74cc189b697496b21f0",
-    "candidate.patch": "11a94bab5485e95b78bcec13a0b49c9676956ef994c17c13d43ed111e3729c0f"
+    "candidate.patch": "11a94bab5485e95b78bcec13a0b49c9676956ef994c17c13d43ed111e3729c0f",
+    ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
   },
   "supporting_inputs": {
-    ".github/workflows/qualify.yml": "817802fbedd37a3e5d80c834affdb2e3c8de46f4ca4cf370b7a7a5741d917f49"
+    ".github/workflows/qualify.yml": "817802fbedd37a3e5d80c834affdb2e3c8de46f4ca4cf370b7a7a5741d917f49",
+    ".gitattributes": "4c2bf40f62560d1637799d3bd85ba152011851759a7efdd52d36a33c8d4b8ca3"
   },
   "referenced_manifests": {
     "gateway_guard/payload-manifest.json": "50ce7331e220acacf56ef8f0ed7406787ff13c4299a4169ec43c5ec5bb964fae",

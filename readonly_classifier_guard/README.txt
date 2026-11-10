@@ -28,6 +28,8 @@ Python method has two quotation subcases); the candidate must pass all
 18 methods and retained inert, native-adapter, policy, wrapper and sentinel
 checks. Existing packet inputs remain referenced and unchanged. Source review
 precedes execution; raw result and actual CI jobs must bind the exact final head.
+This folder's .gitattributes preserves exact pinned bytes on checkout, including
+Windows; whitespace in unified-patch context lines is intentional.
 No game, native backend, actual user saves or paid inference is invoked.
 
 The local baseline run was REFUSED BEFORE EXECUTION (identifier01cb543087836403)
