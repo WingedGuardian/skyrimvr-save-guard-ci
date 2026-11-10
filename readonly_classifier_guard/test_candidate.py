@@ -223,6 +223,24 @@ class Classifier(unittest.TestCase):
             with self.subTest(text=text):
                 self.assert_protected(text)
 
+    def test_background_and_substituted_whole_folder_deletes_stay_protected(self):
+        """CI 42748857513 (exact 223e2b43) showed the deployed baseline allowing a whole protected-folder delete behind
+        a lone `&` or inside backticks. Each spelling here runs the delete in bash or PowerShell 7."""
+        folder = self.protected.as_posix()
+        remove = 'r' + 'm'
+        for tool, text in (('Bash', "echo 'literal' & " + remove + " -rf '" + folder + "'"),
+                           ('Bash', 'echo `' + remove + " -rf '" + folder + "'`"),
+                           ('Bash', 'echo "`' + remove + " -rf '" + folder + "'`\""),
+                           ('Bash', 'sleep 1 & ' + remove + " -rf '" + folder + "' & wait"),
+                           ('PowerShell', "echo 'literal' & Remove-Item -Recurse '" + folder + "'"),
+                           ('PowerShell', "Get-Date & rd -Recurse '" + folder + "'")):
+            with self.subTest(tool=tool, text=text):
+                self.assert_protected(text, tool)
+        for tool, text in (('Bash', "echo 'a' & echo 'b'"), ('Bash', 'sleep 1 & wait'), ('Bash', 'echo `date`'),
+                           ('PowerShell', "Get-Date & Get-ChildItem '" + folder + "'")):
+            with self.subTest(tool=tool, text=text):
+                self.assertEqual(self.classify(text, tool)['kind'], 'allow')
+
 
 def load(file, name):
     spec = importlib.util.spec_from_file_location(name, file)

@@ -2,7 +2,7 @@
   "kind": "readonly-classifier-scope-v1",
   "baseline_commit": "1e2bf07b59228e2a75dbd5c2aeeb02c37874e54c",
   "baseline_sha256": "19a5a52d28edeafdc487a45a37e92ab6198b2d836503784ca78f0e562190d4bf",
-  "expected_new_methods": 19,
+  "expected_new_methods": 20,
   "baseline_red": {
     "methods": 3,
     "failing_assertions": 4,
@@ -12,6 +12,7 @@
     "Import(names=[alias(name='ast')])",
     "Import(names=[alias(name='io')])",
     "Import(names=[alias(name='tokenize')])",
+    "_command_units",
     "_literal_quoted_output",
     "_python_c_argument",
     "_python_rd_view",
@@ -25,14 +26,14 @@
     "recursive_wildcard_above_saves"
   ],
   "files": {
-    "README.txt": "69a9f7edce493df39150bd02c2cb5ed6e988ca4c65f527c5c87d02b97aeed673",
+    "README.txt": "e060dad6991208b9ae576e50bdb83d734203ed5ebf24987401d0bbb360b5425a",
     "qualify.py": "c451bfcd55701687450a0d0bc9fdc04e8b9be0bd66105f4b075d70bb85e8844f",
-    "test_candidate.py": "25209bd0059575489dd26fba6df110d120f53a516c1684da76bf55ed75a2858d",
+    "test_candidate.py": "6417299814bb4ae5145e4d2dc17248aac01615f1f10bd8f0a6a05e5af3382343",
     "reader-input.txt": "2e3e5603b17eedca27185a71d97cd768e71351dd48f75b33be994310f31be4e5",
     "report-input.json": "0073540d99871f5a2ced2902a569b43d17786d6f3783b95c85b0c0e28a5788a3",
     "restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c",
-    "candidate.py": "0090c3119cea09019d5685d4aafee5a6b2439e5b5567acf1a6cf1c972121dd1b",
-    "candidate.patch": "8098ea4473b638cdc67ccf48ad64432dd0005705517c8101e8e452e459713c1a",
+    "candidate.py": "f8805b880b2a0978d81e4b202b64fb2667fb4cf2b4f0e789a0c83ac339a5da4c",
+    "candidate.patch": "b1bc5d794975eb2844e4ac3b261df6881bd1285855edca57df3200daf61a5262",
     ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
   },
   "supporting_inputs": {

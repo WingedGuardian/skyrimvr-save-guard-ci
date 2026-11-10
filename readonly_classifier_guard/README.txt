@@ -25,7 +25,7 @@ Tests and review gates
 Expected outcomes are frozen in test_candidate.py before candidate execution.
 The baseline must reproduce three methods/four failing assertions (the inline
 Python method has two quotation subcases); the candidate must pass all
-19 methods and retained inert, native-adapter, policy, wrapper and sentinel
+20 methods and retained inert, native-adapter, policy, wrapper and sentinel
 checks. Existing packet inputs remain referenced and unchanged. Source review
 precedes execution; raw result and actual CI jobs must bind the exact final head.
 This folder's .gitattributes preserves exact pinned bytes on checkout, including
@@ -59,6 +59,19 @@ The qualifier raw-compiles immediately hash-verified packet modules. Its CI
 invocation uses -B and a fresh absent private pycache_prefix for retained loaders;
 the namespace must remain absent afterward. Merely using -B would still permit
 reading an earlier compiled module and would not prove consumed source bytes.
+
+Second CI outcome and correction (toolkit session, 2026-11-09)
+Run42748857513 tested223e2b43 on Windows and Linux. Both baseline contrasts
+reproduced as frozen; the candidate failed two composition assertions: a
+whole protected-folder delete behind a lone `&` and inside backticks was
+allowed. Decision-only probes show the deployed baseline 19a5a52d allows the
+same shapes (also rm -rf and PowerShell 7 Remove-Item -Recurse behind `&`), so
+this is a preexisting gap, not one 223e introduced. folder_violation now also
+splits each command on a lone `&` (_command_units; a heredoc body stays with
+its command) and judges every backtick/$() substitution as its own command.
+Method 20 pins the rm/Remove-Item spellings plus composed commands that stay
+allowed. Decision-only probe of this head: 10 composed deletes refused, 7
+ordinary controls allowed. No passing CI result exists for this head yet.
 
 Deployment gate
 The user approved preparing an isolated fix with independent review and green
