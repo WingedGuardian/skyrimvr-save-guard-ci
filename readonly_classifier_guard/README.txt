@@ -80,7 +80,11 @@ adapter test's module global, but NativeFlag.classify binds module=guard as a
 default at import, so it judged an unpatched baseline (every allow-control
 failed). qualify.py now binds that default to the candidate under test; with it,
 the baseline and this candidate both allow the reference adapter command
-(decision-only probe). No passing CI result exists for this head yet.
+(decision-only probe). CI 42765143925 (3775d91) then passed the new 20, inert 16
+and native-adapter 12 on both platforms and stopped loading the retained
+gateway checks: gateway_guard/qualify.py was not among the pinned inputs. It is
+now pinned in supporting_inputs at its committed bytes (unchanged).
+No passing CI result exists for this head yet.
 
 Deployment gate
 The user approved preparing an isolated fix with independent review and green

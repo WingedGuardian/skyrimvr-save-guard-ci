@@ -26,7 +26,7 @@
     "recursive_wildcard_above_saves"
   ],
   "files": {
-    "README.txt": "9e0f0052b70066df3eb4e4332527ca2e8e5c7e1aa0ffe64f30bf0c4edbd80979",
+    "README.txt": "6a60d2892a4d9050b7ee4eb398a7c544d782f2cd5aaac31e33b747db50b68eb7",
     "qualify.py": "55aa6a134aabce971eb67357c36824de5284b409a726a4c251eadd06461b7b47",
     "test_candidate.py": "a54b62791359290b9ee3cb78ef3dd893962fb40699c63497225ce4ae17be6a63",
     "reader-input.txt": "2e3e5603b17eedca27185a71d97cd768e71351dd48f75b33be994310f31be4e5",
@@ -38,7 +38,8 @@
   },
   "supporting_inputs": {
     ".github/workflows/qualify.yml": "817802fbedd37a3e5d80c834affdb2e3c8de46f4ca4cf370b7a7a5741d917f49",
-    ".gitattributes": "4c2bf40f62560d1637799d3bd85ba152011851759a7efdd52d36a33c8d4b8ca3"
+    ".gitattributes": "4c2bf40f62560d1637799d3bd85ba152011851759a7efdd52d36a33c8d4b8ca3",
+    "gateway_guard/qualify.py": "b87795cc901d9360dfbae77e088cf433b17a6cdb77f2c4186d9c04c5dd7b088a"
   },
   "referenced_manifests": {
     "gateway_guard/payload-manifest.json": "50ce7331e220acacf56ef8f0ed7406787ff13c4299a4169ec43c5ec5bb964fae",
