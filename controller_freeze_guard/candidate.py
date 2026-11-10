@@ -537,8 +537,9 @@ def _bare_single_call(raw, text):
     quoted = "(?:'" + re.escape(raw) + "'|\"" + re.escape(raw) + "\"|" + re.escape(raw) + ")"
     interpreter = r'(?:"[^"\n]*[/\\]|\'[^\'\n]*[/\\]|[^\s"\';|&]*[/\\])?(?:python\w*(?:\.\d+)?|py)(?:\.exe)?["\']?'
     # Only value-less single-letter options: `-X`, `-W`, `-c`, `-m` and long options take the NEXT word as their
-    # value, so `python -X <token> freeze` would run ./freeze from the cwd under the token's exemption.
-    flags = r'(?:[ \t]+-[BEIOPRSbdiqsuv]+)*'
+    # value, so `python -X <token> freeze` would run ./freeze from the cwd under the token's exemption. `-O`
+    # strips assert statements and `-P` (3.11+) changes the import path, so neither is admitted either.
+    flags = r'(?:[ \t]+-[BEIRSbdiqsuv]+)*'
     tail = r'(?:[ \t]+[^\s;&|`$(){}<>"\'\\]+)*'
     return re.fullmatch(r'[ \t]*(?:&[ \t]*)?' + interpreter + flags + r'[ \t]+' + quoted + tail + r'[ \t]*',
                         text, re.I) is not None

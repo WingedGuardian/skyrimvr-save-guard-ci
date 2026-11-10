@@ -29,7 +29,7 @@
   'tools/housekeep.py': {'sha256': {'388db95fcfff7aec90d88bf0045c85244bb18906f590e81c774083ea501ad556'},
                          'verbs': {'', '--help', 'version', '-h', 'plan', 'report'},
                          'plan_verbs': {'apply'}}}
-@@ -505,6 +527,23 @@
+@@ -505,6 +527,24 @@
          return False
  
  
@@ -43,8 +43,9 @@
 +    quoted = "(?:'" + re.escape(raw) + "'|\"" + re.escape(raw) + "\"|" + re.escape(raw) + ")"
 +    interpreter = r'(?:"[^"\n]*[/\\]|\'[^\'\n]*[/\\]|[^\s"\';|&]*[/\\])?(?:python\w*(?:\.\d+)?|py)(?:\.exe)?["\']?'
 +    # Only value-less single-letter options: `-X`, `-W`, `-c`, `-m` and long options take the NEXT word as their
-+    # value, so `python -X <token> freeze` would run ./freeze from the cwd under the token's exemption.
-+    flags = r'(?:[ \t]+-[BEIOPRSbdiqsuv]+)*'
++    # value, so `python -X <token> freeze` would run ./freeze from the cwd under the token's exemption. `-O`
++    # strips assert statements and `-P` (3.11+) changes the import path, so neither is admitted either.
++    flags = r'(?:[ \t]+-[BEIRSbdiqsuv]+)*'
 +    tail = r'(?:[ \t]+[^\s;&|`$(){}<>"\'\\]+)*'
 +    return re.fullmatch(r'[ \t]*(?:&[ \t]*)?' + interpreter + flags + r'[ \t]+' + quoted + tail + r'[ \t]*',
 +                        text, re.I) is not None
@@ -53,7 +54,7 @@
  def read_only_script_call(script, raw, text, cwd='.', tool=None):
      """Recognize pinned read-only calls, verified non-save plans, or the exact
      user-approved non-save lifecycle. This never grants launch/load consent."""
-@@ -520,6 +559,13 @@
+@@ -520,6 +560,13 @@
      # EVERY occurrence of the script in the command must be a read-only call: `plan && apply` is an apply.
      starts = [m.end() for m in re.finditer(re.escape(raw), text)]
      if not starts:

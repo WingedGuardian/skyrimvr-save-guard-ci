@@ -174,7 +174,7 @@ class FreezeExemption(unittest.TestCase):
 
     def test_bare_call_accepts_only_valueless_interpreter_flags(self):
         # `python -X <token> freeze` would hand the token to -X and run ./freeze from the cwd (review 2026-11-10 v5).
-        for flags in (' -X', ' -W', ' -c', ' -m', ' --check-hash-based-pycs', ' -B -X'):
+        for flags in (' -X', ' -W', ' -c', ' -m', ' --check-hash-based-pycs', ' -B -X', ' -O', ' -OO', ' -P', ' -BO'):
             with self.subTest(flags=flags):
                 self.assert_protected('python' + flags + " '" + SCRIPT + "' freeze")
         for flags in ('', ' -B', ' -E -s -B', ' -I', ' -BEs'):

@@ -17,10 +17,10 @@
  "files": {
   "README.txt": "7d23b0d0f71a16ca44ac60517ca235aaf181d8f4e42d565a66a8deccdea36018",
   "qualify.py": "512c35c982fc8ba71a32e4fd56376a61d41b966a03a5877d90660d87a010be06",
-  "test_candidate.py": "c4ff6a5e4e87dcf2ce818b0619e00c2d20184238c63eb2494ccce136257cb0f6",
+  "test_candidate.py": "e21852be8af07f54be6c9c0d94e6477d2abaf6fdbc7a97be1587ad0a93eb9a28",
   "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
-  "candidate.py": "a0798d1beb771a37d0a6d2ee162e9fa2e35371c20b9530d560726ffc01c3c9a5",
-  "candidate.patch": "908b2f9f1e5b9b9a67773a60c15df4f761d21988851a52f8100c9e430376fa86",
+  "candidate.py": "07b114afe0fd1e9ae82014d48f70a0c452e1923a949e7413645d075756d84582",
+  "candidate.patch": "beafa73e0718b99dc8b5faf762a7269564a57217e1023ab3bdb91c6c048c41e6",
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
  },
  "supporting_inputs": {
