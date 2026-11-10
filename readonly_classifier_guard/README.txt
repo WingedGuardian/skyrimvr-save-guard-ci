@@ -74,7 +74,13 @@ allowed. Review (toolkit, 2026-11-09) then found a substitution judged from the
 original cwd (a cd before it was ignored) and a quoted `<<` disabling the split;
 both fixed: each substitution is judged from its own command's cwd. Decision-only
 probe of this head: 13 composed deletes refused, 7 ordinary controls allowed.
-No passing CI result exists for this head yet.
+CI 42757128009 (880c5fd) then passed all 20 new methods and the inert 16 on both
+platforms and failed the retained native-adapter 12: qualify.py swapped the
+adapter test's module global, but NativeFlag.classify binds module=guard as a
+default at import, so it judged an unpatched baseline (every allow-control
+failed). qualify.py now binds that default to the candidate under test; with it,
+the baseline and this candidate both allow the reference adapter command
+(decision-only probe). No passing CI result exists for this head yet.
 
 Deployment gate
 The user approved preparing an isolated fix with independent review and green

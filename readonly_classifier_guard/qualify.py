@@ -138,6 +138,10 @@ def main():
     inert = run(inert_suite)
     adapter = load(HERE.parent / 'native_adapter_guard/test_candidate.py', 'readonly_retained_adapter')
     adapter.guard = tests.guard
+    # NativeFlag.classify(self, command=None, module=guard) bound its default to the adapter test's own baseline at
+    # import, so rebinding the module global alone left classify() judging an unpatched baseline (CI 42757128009:
+    # every retained allow-control failed with "adapter differs"). Bind the default to the candidate under test.
+    adapter.NativeFlag.classify.__defaults__ = (None, tests.guard)
     native_suite = unittest.defaultTestLoader.loadTestsFromTestCase(adapter.NativeFlag)
     if native_suite.countTestCases() != 12:
         raise RuntimeError('Retained native-adapter12 shape changed')

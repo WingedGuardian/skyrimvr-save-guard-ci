@@ -26,8 +26,8 @@
     "recursive_wildcard_above_saves"
   ],
   "files": {
-    "README.txt": "b3401f92a394ae2a12b30af7a6802922afa51fef1b60b93d0c17ba6a0c824312",
-    "qualify.py": "c451bfcd55701687450a0d0bc9fdc04e8b9be0bd66105f4b075d70bb85e8844f",
+    "README.txt": "9e0f0052b70066df3eb4e4332527ca2e8e5c7e1aa0ffe64f30bf0c4edbd80979",
+    "qualify.py": "55aa6a134aabce971eb67357c36824de5284b409a726a4c251eadd06461b7b47",
     "test_candidate.py": "a54b62791359290b9ee3cb78ef3dd893962fb40699c63497225ce4ae17be6a63",
     "reader-input.txt": "2e3e5603b17eedca27185a71d97cd768e71351dd48f75b33be994310f31be4e5",
     "report-input.json": "0073540d99871f5a2ced2902a569b43d17786d6f3783b95c85b0c0e28a5788a3",
