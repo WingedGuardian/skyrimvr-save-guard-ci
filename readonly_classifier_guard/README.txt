@@ -13,7 +13,8 @@ zero files. reader-input.txt and report-input.json are sanitized classifier
 INPUT DATA ONLY. Never execute either payload.
 
 Scope
-Qualify contextual shell-alias recognition without changing actual mutation,
+Recognize the demonstrated explicitly imported stdlib reader lambda without
+mistaking its rd identifier for a shell command, while retaining actual mutation,
 preservation, runtime-load, never-delete-folder, backup retention or approval
 rules. A constrained static Node JSON writer may expose its exact literal write
 target to the existing target judge; unmatched code remains conservative.
@@ -24,7 +25,7 @@ Tests and review gates
 Expected outcomes are frozen in test_candidate.py before candidate execution.
 The baseline must reproduce three methods/four failing assertions (the inline
 Python method has two quotation subcases); the candidate must pass all
-17 methods and retained inert, native-adapter, policy, wrapper and sentinel
+18 methods and retained inert, native-adapter, policy, wrapper and sentinel
 checks. Existing packet inputs remain referenced and unchanged. Source review
 precedes execution; raw result and actual CI jobs must bind the exact final head.
 No game, native backend, actual user saves or paid inference is invoked.

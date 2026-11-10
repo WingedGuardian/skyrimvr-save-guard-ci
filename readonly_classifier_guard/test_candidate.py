@@ -172,7 +172,7 @@ class Classifier(unittest.TestCase):
 
     def test_local_reader_binding_does_not_mask_foreign_attributes_or_keywords(self):
         target = (self.protected / 'case-0.ess').as_posix()
-        prefix = 'from pathlib import Path; rd=lambda p:Path(p).read_bytes(); '
+        prefix = 'import json; from pathlib import Path; rd=lambda p:json.loads(Path(p).read_bytes()); '
         for body in (prefix + "other.rd('" + target + "')",
                      prefix + "unknown(rd=rd, target='" + target + "')"):
             with self.subTest(body=body):
@@ -189,7 +189,7 @@ class Classifier(unittest.TestCase):
     def test_opaque_or_mutated_rd_bindings_remain_conservative(self):
         target = (self.protected / 'case-0.ess').as_posix()
         call = "rd('" + target + "')"
-        reader = 'from pathlib import Path\nrd=lambda p:Path(p).read_bytes()\n'
+        reader = 'import json\nfrom pathlib import Path\nrd=lambda p:json.loads(Path(p).read_bytes())\n'
         bodies = ('rd=lambda p:opaque(p)\n' + call,
             'def rd(p):\n    return opaque(p)\n' + call,
             reader + 'from opaque_module import *\n' + call,
@@ -199,6 +199,15 @@ class Classifier(unittest.TestCase):
         for body in bodies:
             with self.subTest(body=body):
                 self.assert_protected('python -c "' + body + '"')
+
+    def test_explicit_stdlib_reader_aliases_keep_reads_free(self):
+        target = (self.protected / 'case-0.ess').as_posix()
+        for prefix, expression in (('import json as j; import pathlib as pl', 'j.loads(pl.Path(p).read_bytes())'),
+                ('import json; from pathlib import Path as P', 'json.loads(P(p).read_bytes())'),
+                ('from json import loads as j; from pathlib import Path as P', 'j(P(p).read_bytes())')):
+            body = prefix + '; rd=lambda p:' + expression + "; print(rd('" + target + "'))"
+            with self.subTest(body=body):
+                self.assertEqual(self.classify('python -c "' + body + '"')['kind'], 'allow')
 
 
 def load(file, name):

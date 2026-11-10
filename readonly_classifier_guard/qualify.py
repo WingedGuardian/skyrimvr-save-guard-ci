@@ -97,6 +97,9 @@ def run(suite):
 
 
 def main():
+    if sys.implementation.name != 'cpython' or sys.version_info[:2] != (3, 10) \
+            or sys.flags.ignore_environment != 1 or sys.flags.no_user_site != 1:
+        raise RuntimeError('Reviewed CPython3.10 invocation requires -E and -s')
     prefix = HERE / 'no-pyc'
     if not sys.dont_write_bytecode or sys.pycache_prefix is None \
             or Path(sys.pycache_prefix).resolve() != prefix or os.path.lexists(prefix):

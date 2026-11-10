@@ -1,0 +1,438 @@
+--- a/protect-save-access.py
++++ b/protect-save-access.py
+@@ -33,9 +33,11 @@
+ Classification errs toward the stricter operation: any write indicator makes the command
+ a write, and a write the hook cannot pin down needs approval instead of passing.
+ """
++import ast
+ import datetime
+ from fnmatch import fnmatch
+ import hashlib
++import io
+ import json
+ import os
+ from pathlib import Path
+@@ -44,6 +46,7 @@
+ import shutil
+ import sys
+ import time
++import tokenize
+ 
+ ROOT = Path(__file__).resolve().parents[2]
+ # Not named ".../saves/": a path component "saves" would make the store look like a Saves folder.
+@@ -133,7 +136,9 @@
+                                 r'|\|\s*(?:%|foreach(?:-object)?)\s+(?:-membername\s+)?(?:delete|moveto|encrypt)\b|\|\s*(?:ri|remove-item)\b', re.I)
+ 
+ 
+-def changes_files(code):
++def changes_files(code, python=False):
++    if python:
++        code = _python_rd_view(code)
+     return bool(MUTATE.search(code) or CODE_CHANGES_FILES.search(code))
+ # A save LOCATION spelled in code: a Saves path component, the quoted component 'Saves' (os.path.join(..., 'Saves')),
+ # or the INI key that moves the folder. Not the bare word: "Saves your session stats" in a help string made every
+@@ -672,6 +677,7 @@
+ 
+ 
+ def operation(text, tool):
++    text = _rd_interpreter_view(text)
+     text = tool + '\n' + text
+     for label, pattern in [
+             ('delete', r'remove-item|\bunlink\b|\brmtree\b|\brm\b|\bdel\b|\berase\b|\brmdir\b|\brd\b|os\.remove'
+@@ -935,6 +941,7 @@
+ def folder_violation(text, cwd):
+     """A delete/move/rename whose target is a whole Saves folder, a parent of one, or the
+     backup store (or anything inside the store). Never approvable."""
++    text = _rd_interpreter_view(text)
+     vcwd = cwd
+     for segment, _ in split_segments(text):
+         word, args = first_word(segment)
+@@ -1059,6 +1066,7 @@
+     """For find -delete / find -exec rm and recursive deletes that reach saves:
+     ('set', files) when the hook can count the matches now, ('uncountable', why), or None
+     when the command is not such a delete. Whole-folder targets were refused before this."""
++    text = _rd_interpreter_view(text)
+     vcwd, applies, files = cwd, False, set()
+     deadline = time.monotonic() + 5.0
+     for segment, _ in split_segments(text):
+@@ -1679,6 +1687,7 @@
+     """`rm -rf "<My Games>/*"`: a recursive wildcard delete in a folder ABOVE a save folder takes the whole Saves
+     folder with it. Deleting that folder by name is already refused (folder_violation); its contents by wildcard
+     were not (both guards allowed it, found 2026-10-30)."""
++    text = _rd_interpreter_view(text)
+     if not RECURSIVE.search(text) or operation(text, 'Bash') != 'delete':
+         return []
+     # Strictly ABOVE: `Saves/*` itself stays the approvable bulk change the rest of the guard counts.
+@@ -1957,6 +1966,350 @@
+             if re.fullmatch(r'-c(?:ommand)?', w, re.I):
+                 return _joined(args[i + 1:])
+     return None
++
++
++def _python_rd_view(source):
++    """Only a tightly bound stdlib reader's NAME stops being the shell alias rd.
++
++    One module-local lambda must return json.loads(Path(p).read_bytes())
++    through explicit json/pathlib imports. Only direct calls may use the reader;
++    unknown bindings, callback escape, visible rebinding or execution sinks keep
++    the original classification. No path/string/other mutation token is removed.
++    This is a source classifier, not Python purity or hostile-code isolation.
++    """
++    if len(source) > 262144 or not re.search(r'\brd\b', source, re.I):
++        return source
++    sinks = {'exec', 'eval', 'compile', '__import__', 'getattr', 'globals', 'locals', 'vars',
++             'system', 'popen', 'run', 'call', 'Popen', 'check_call', 'check_output',
++             'execv', 'execve', 'execl', 'execlp', 'execvp', 'execvpe', 'spawnv', 'spawnve',
++             'spawnl', 'spawnlp', 'spawnvp', 'spawnvpe', 'startfile', 'load_module'}
++    try:
++        tree = ast.parse(source)
++        parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
++        definitions = []
++        for node in tree.body:
++            if isinstance(node, ast.Assign) and len(node.targets) == 1 \
++                    and isinstance(node.targets[0], ast.Name) and node.targets[0].id.lower() == 'rd' \
++                    and isinstance(node.value, ast.Lambda) and node.type_comment is None:
++                definitions.append((node, node.targets[0].id, node.value.args, node.value.body, node.targets[0]))
++        if len(definitions) != 1:
++            return source
++        definition, name, arguments, expression, binding_target = definitions[0]
++        if arguments.posonlyargs or len(arguments.args) != 1 or arguments.vararg or arguments.kwarg \
++                or arguments.kwonlyargs or arguments.defaults or arguments.kw_defaults \
++                or arguments.args[0].annotation is not None:
++            return source
++        parameter = arguments.args[0].arg
++        symbols, imports = {}, set()
++        for node in tree.body:
++            if (node.lineno, node.col_offset) >= (definition.lineno, definition.col_offset):
++                continue
++            if isinstance(node, ast.Import):
++                pairs = [(item, item.asname or item.name, item.name) for item in node.names
++                         if item.name in ('json', 'pathlib')]
++            elif isinstance(node, ast.ImportFrom) and node.level == 0:
++                pairs = [(item, item.asname or item.name, node.module + '.' + item.name) for item in node.names
++                         if (node.module, item.name) in (('json', 'loads'), ('pathlib', 'Path'))]
++            else:
++                continue
++            for item, alias, qualified in pairs:
++                if alias in symbols and symbols[alias] != qualified:
++                    return source
++                symbols[alias] = qualified
++                imports.add(item)
++
++        def qualified(node):
++            if isinstance(node, ast.Name):
++                return symbols.get(node.id)
++            if isinstance(node, ast.Attribute):
++                root = qualified(node.value)
++                return root + '.' + node.attr if root else None
++            return None
++
++        # Recognize exactly a standard-library read expression, never an opaque
++        # local function, decorated/default-expression binding or callback.
++        if not isinstance(expression, ast.Call) or qualified(expression.func) != 'json.loads' \
++                or len(expression.args) != 1 or expression.keywords:
++            return source
++        read = expression.args[0]
++        if not isinstance(read, ast.Call) or read.args or read.keywords \
++                or not isinstance(read.func, ast.Attribute) or read.func.attr != 'read_bytes':
++            return source
++        path = read.func.value
++        if not isinstance(path, ast.Call) or qualified(path.func) != 'pathlib.Path' \
++                or len(path.args) != 1 or path.keywords or not isinstance(path.args[0], ast.Name) \
++                or path.args[0].id != parameter or parameter in symbols or parameter.lower() == 'rd':
++            return source
++        used = {node.id for node in ast.walk(expression) if isinstance(node, ast.Name) and node.id in symbols}
++        protected = used
++
++        def target_roots(node):
++            if isinstance(node, ast.Name): return {node.id}
++            if isinstance(node, (ast.Attribute, ast.Subscript)): return target_roots(node.value)
++            if isinstance(node, ast.Starred): return target_roots(node.value)
++            if isinstance(node, (ast.Tuple, ast.List)):
++                return set().union(*(target_roots(item) for item in node.elts))
++            return set()
++
++        for node in ast.walk(tree):
++            if isinstance(node, ast.Attribute) and (node.attr in sinks or node.attr.startswith(('exec', 'spawn'))):
++                return source
++            if isinstance(node, ast.ImportFrom) and any(item.name == '*' or item.name in sinks
++                    or item.name.startswith(('exec', 'spawn')) or (item.asname or item.name).lower() == 'rd'
++                    for item in node.names):
++                return source
++            if isinstance(node, (ast.Import, ast.ImportFrom)) and any(
++                    (item.asname or item.name.split('.')[0]) in protected and item not in imports
++                    for item in node.names):
++                return source
++            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) \
++                    and node.name in protected and node is not definition:
++                return source
++            if isinstance(node, (ast.Global, ast.Nonlocal)) and protected.intersection(node.names):
++                return source
++            if isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)) and node.name in protected:
++                return source
++            if isinstance(node, ast.MatchMapping) and node.rest in protected:
++                return source
++            if isinstance(node, ast.arg) and node.arg in protected:
++                return source  # A runtime-supplied callable is not this local binding.
++            if isinstance(node, ast.Name) and node.id in protected:
++                parent = parents.get(node)
++                if isinstance(node.ctx, ast.Load):
++                    direct = isinstance(parent, ast.Call) and parent.func is node
++                    if not (direct or isinstance(parent, ast.Attribute)):
++                        return source  # Standard-library binding escaped to an unknown consumer.
++                elif node is not binding_target:
++                    return source
++            if isinstance(node, ast.Attribute) and target_roots(node) & used:
++                parent = parents.get(node)
++                if not ((isinstance(parent, ast.Call) and parent.func is node)
++                        or (isinstance(parent, ast.Attribute) and parent.value is node)):
++                    return source
++            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr, ast.Delete)):
++                targets = node.targets if isinstance(node, (ast.Assign, ast.Delete)) else [node.target]
++                if node is not definition and any(target_roots(target) & protected for target in targets):
++                    return source
++            if isinstance(node, ast.Call):
++                if not isinstance(node.func, (ast.Name, ast.Attribute)):
++                    return source
++                if isinstance(node.func, ast.Name) and node.func.id in sinks:
++                    return source
++        lines = source.splitlines(keepends=True)
++        offsets, total = [], 0
++        for line in lines:
++            offsets.append(total)
++            total += len(line)
++        def span(node):
++            # AST columns count UTF-8 bytes; tokenize columns count characters.
++            def position(row, column):
++                return offsets[row - 1] + len(lines[row - 1].encode('utf-8')[:column].decode('utf-8'))
++            return position(node.lineno, node.col_offset), position(node.end_lineno, node.end_col_offset)
++        allowed = {span(binding_target)}
++        allowed.update(span(node.func) for node in ast.walk(tree) if isinstance(node, ast.Call)
++            and isinstance(node.func, ast.Name) and node.func.id == name)
++        edits = []
++        for token in tokenize.generate_tokens(io.StringIO(source).readline):
++            if token.type == tokenize.NAME and token.string.lower() == 'rd':
++                location = (offsets[token.start[0] - 1] + token.start[1],
++                            offsets[token.end[0] - 1] + token.end[1])
++                if location not in allowed:
++                    return source  # Attribute/keyword/store/capture/escape is not a direct reader use.
++                edits.append(location)
++        for start, end in reversed(edits):
++            source = source[:start] + '_' * (end - start) + source[end:]
++        return source
++    except (SyntaxError, ValueError, TypeError, UnicodeError, tokenize.TokenError,
++            IndentationError, IndexError, RecursionError):
++        return source
++
++
++def _python_c_argument(segment):
++    """Literal -c argument, optionally through the existing exact rb run grammar."""
++    words = _without_redirects(_shell_words(segment))[0]
++    name, args = _command_of(words)
++    if not re.fullmatch(r'(?:python(?:\d+(?:\.\d+)*)?|py)', name, re.I):
++        return None
++
++    def flags(rest):
++        rest = list(rest)
++        while rest and rest[0] in ('-B', '-E', '-s', '-S', '-u', '-I'):
++            rest.pop(0)
++        return rest
++
++    args = flags(args)
++    if args[:1] == ['-c'] and len(args) == 2:
++        return args[1]
++    if len(args) < 4 or args[1:2] != ['run']:
++        return None
++    try:
++        runner = Path(msys_fix(args[0]))
++        if not runner.is_absolute() or runner.resolve() != (Path.home() / '.claude/tools/resource-budget/rb.py').resolve():
++            return None
++        divider = args.index('--', 2)
++    except (OSError, ValueError):
++        return None
++    options = args[2:divider]
++    if len(options) % 2 or any(options[i] not in ('--name', '--cpu', '--ram', '--disk', '--cpu-cap',
++            '--mem-cap', '--priority', '--wait-until-fits') for i in range(0, len(options), 2)):
++        return None
++    child, rest = _command_of(args[divider + 1:])
++    rest = flags(rest)
++    if re.fullmatch(r'(?:python(?:\d+(?:\.\d+)*)?|py)', child, re.I) \
++            and rest[:1] == ['-c'] and len(rest) == 2:
++        return rest[1]
++    return None
++
++
++def _rd_interpreter_view(text):
++    """Retain shell syntax; distinguish only exact, statically bound Python code.
++
++    A single-quoted PowerShell here-string is recognized only as one complete
++    assignment plus one complete Python -c command. Extra statements, consumers,
++    expansion or unknown forms keep all original checks. The original command
++    and approval hash are not changed.
++    """
++    if len(text) > 524288 or not re.search(r'\brd\b', text, re.I):
++        return text
++    here = list(re.finditer(r"(?m)^[ \t]*(\$[A-Za-z_]\w*)[ \t]*=[ \t]*@'\r?\n(.*?)\r?\n'@[ \t]*$",
++                            text, re.S))
++    scan = text
++    for item in reversed(here):
++        scan = scan[:item.start(2)] + re.sub(r'[^\r\n]', ' ', item[2]) + scan[item.end(2):]
++    consumers = [_python_c_argument(segment) for segment, _ in split_segments(scan)]
++    edits = []
++    for item in (here if len(here) == 1 else ()):
++        variable = item[1]
++        remaining = (text[:item.start()] + text[item.end():]).strip()
++        segments = split_segments(remaining)
++        # Inspect the WHOLE outside program. Counting $name spellings cannot
++        # exclude ${name}, Get-Variable, aliases or another dynamic consumer.
++        if len(segments) == 1 and segments[0][0] == remaining \
++                and len(_split_on_ampersand(remaining)) == 1 \
++                and not _substitutions(remaining) and remaining.count('$') == 1 \
++                and _python_c_argument(remaining) == variable:
++            edits.append((item.start(2), item.end(2), _python_rd_view(item[2])))
++    # Direct literal -c payloads are recognized as one complete simple command.
++    # Only exact raw payload spans can be changed; escaping we cannot reproduce
++    # stays conservative rather than reconstructing another executable command.
++    for value in consumers:
++        if value and not value.startswith('$') and text.count(value) == 1:
++            start = text.find(value)
++            edits.append((start, start + len(value), _python_rd_view(value)))
++    for start, end, value in sorted(edits, reverse=True):
++        text = text[:start] + value + text[end:]
++    return text
++
++
++def _static_node_report_target(tool, args):
++    """One plain-data assignment and one literal fs.writeFile destination.
++
++    This intentionally small grammar is not general JavaScript parsing. It
++    evaluates nothing and recognizes no expressions/getters/templates/calls in
++    data. An unmatched program goes through all existing conservative rules.
++    """
++    if tool != 'mcp__node_repl__js' or not isinstance(args, dict) or type(args.get('code')) is not str \
++            or not set(args) <= {'code', 'title'} or ('title' in args and type(args['title']) is not str):
++        return None
++    code = args['code']
++    if len(code) > 65536:
++        return None
++    token_re = re.compile(r'''\s+|(?P<string>'(?:[^'\\\r\n]|\\.)*'|"(?:[^"\\\r\n]|\\.)*")|'''
++                          r'(?P<number>-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)|'
++                          r'(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)|(?P<punct>[{}\[\]():;,\.=])')
++    tokens, pos = [], 0
++    for found in token_re.finditer(code):
++        if found.start() != pos:
++            return None
++        pos = found.end()
++        if not found.group().isspace():
++            tokens.append((found.lastgroup, found.group()))
++    if pos != len(code) or len(tokens) > 10000:
++        return None
++
++    def string(raw):
++        out, index = [], 1
++        escapes = {'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t',
++                   '\\': '\\', '/': '/', '"': '"', "'": "'"}
++        while index < len(raw) - 1:
++            char = raw[index]; index += 1
++            if char == '\\':
++                char = raw[index]; index += 1
++                if char == 'u':
++                    digits = raw[index:index + 4]
++                    if not re.fullmatch('[0-9a-fA-F]{4}', digits):
++                        raise ValueError('Unsupported escape')
++                    char = chr(int(digits, 16)); index += 4
++                else:
++                    char = escapes[char]
++            if ord(char) < 32 or 0xd800 <= ord(char) <= 0xdfff:
++                raise ValueError('Unsupported literal character')
++            out.append(char)
++        return ''.join(out)
++
++    index = 0
++    def take(value):
++        nonlocal index
++        if index >= len(tokens) or tokens[index][1] != value:
++            raise ValueError('Unsupported report grammar')
++        index += 1
++
++    def literal(depth=0):
++        nonlocal index
++        if depth > 24 or index >= len(tokens):
++            raise ValueError('Bounded plain data required')
++        kind, value = tokens[index]
++        if kind == 'string':
++            index += 1; return string(value)
++        if kind == 'number' or value in ('true', 'false', 'null'):
++            index += 1; return None
++        if value == '[':
++            take('[')
++            if tokens[index][1] != ']':
++                while True:
++                    literal(depth + 1)
++                    if tokens[index][1] != ',': break
++                    take(',')
++            take(']'); return None
++        if value == '{':
++            take('{'); fields = {}
++            if tokens[index][1] != '}':
++                while True:
++                    kind, key = tokens[index]
++                    if kind == 'string': key = string(key)
++                    elif kind != 'name': raise ValueError('Plain key required')
++                    if key in fields or key in ('__proto__', 'constructor', 'prototype'):
++                        raise ValueError('Unsupported object key')
++                    index += 1; take(':'); fields[key] = literal(depth + 1)
++                    if tokens[index][1] != ',': break
++                    take(',')
++            take('}'); return fields
++        raise ValueError('No report expressions')
++
++    try:
++        if not tokens or tokens[index][1] not in ('var', 'let', 'const'):
++            return None
++        index += 1
++        kind, variable = tokens[index]
++        if kind != 'name' or variable in ('fs', 'JSON', 'await', 'var', 'let', 'const'):
++            return None
++        index += 1; take('=')
++        if tokens[index][1] not in ('{', '['): return None
++        literal(); take(';'); take('await'); take('fs'); take('.'); take('writeFile'); take('(')
++        kind, raw = tokens[index]
++        if kind != 'string': return None
++        target = string(raw); index += 1
++        if not is_abs(target) or any(char in target for char in '$`%{}*?[]\r\n\0'):
++            return None
++        take(','); take('JSON'); take('.'); take('stringify'); take('('); take(variable)
++        take(','); take('null'); take(','); take('2'); take(')'); take(',')
++        options = literal()
++        if options != {'flag': 'wx'}: return None
++        take(')')
++        if index < len(tokens): take(';')
++        return target if index == len(tokens) else None
++    except (ValueError, KeyError, IndexError, RecursionError):
++        return None
+ 
+ 
+ def _tar_writes(args):
+@@ -2462,6 +2815,11 @@
+         return decision('deny', reason=LOCK_SWITCH_DENY)
+     if re.search(r'-(?:encodedcommand|enc)\b|base64\s+-d.*\|\s*(?:bash|sh|python)', text, re.I):
+         return decision('deny', reason='Encoded executable commands cannot be checked for save access and are blocked.')
++    report_target = _static_node_report_target(tool, args)
++    if report_target is not None:
++        written = _judge_written('write', [report_target], cwd, base, report_target)
++        return written if written is not None else outside_save_folders(report_target, 'write', base)
++    text = _rd_interpreter_view(text)
+     native_adapter = native_adapter_call(text, cwd, base)
+     if native_adapter is not None:
+         return native_adapter
+@@ -2563,7 +2921,8 @@
+                             why='An invoked script drives in-game save/load through DevBench.', **base)
+         # A script that can write counts when its code spells a save LOCATION, or when this command hands it one.
+         # A bare .ess mention in its code does not: native_batch_run.py names `.ess` only to REFUSE touching saves.
+-        if changes_files(code) and (mentions_save_location(code) or hands_save_location(text, cwd)):
++        if changes_files(code, python=script.suffix.lower() == '.py') \
++                and (mentions_save_location(code) or hands_save_location(text, cwd)):
+             return decision('needs_set', op=op if op in WRITE_OPS else 'write', set=None,
+                             why='An invoked script changes saves the hook cannot count from the command.', **base)
+     if not touches_save_location(text, cwd):

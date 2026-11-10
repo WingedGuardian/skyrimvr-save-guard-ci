@@ -1,0 +1,51 @@
+{
+  "kind": "readonly-classifier-scope-v1",
+  "baseline_commit": "1e2bf07b59228e2a75dbd5c2aeeb02c37874e54c",
+  "baseline_sha256": "19a5a52d28edeafdc487a45a37e92ab6198b2d836503784ca78f0e562190d4bf",
+  "expected_new_methods": 18,
+  "baseline_red": {
+    "methods": 3,
+    "failing_assertions": 4,
+    "errors": 0
+  },
+  "reviewed_changed_declarations": [
+    "Import(names=[alias(name='ast')])",
+    "Import(names=[alias(name='io')])",
+    "Import(names=[alias(name='tokenize')])",
+    "_python_c_argument",
+    "_python_rd_view",
+    "_rd_interpreter_view",
+    "_static_node_report_target",
+    "changes_files",
+    "decide",
+    "folder_violation",
+    "operation",
+    "recursive_delete_set",
+    "recursive_wildcard_above_saves"
+  ],
+  "files": {
+    "README.txt": "27c46f93bad68a70c9ff9756b4c4742e8a3a0ff16e6fe7d546fcf3334086f117",
+    "qualify.py": "5caee787a9fae8501d999891c5c5e1e487800173a5432dd3b7d8ca1a26fdc6fa",
+    "test_candidate.py": "5ec57db9f1f17bd52b8bb41c07404762eea2dc7ee7ef0553a023c33b2ab9bca9",
+    "reader-input.txt": "2e3e5603b17eedca27185a71d97cd768e71351dd48f75b33be994310f31be4e5",
+    "report-input.json": "0073540d99871f5a2ced2902a569b43d17786d6f3783b95c85b0c0e28a5788a3",
+    "restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c",
+    "candidate.py": "f4c63770f2533bdc118dfca3080f8c062865ef9b8b79e74cc189b697496b21f0",
+    "candidate.patch": "11a94bab5485e95b78bcec13a0b49c9676956ef994c17c13d43ed111e3729c0f"
+  },
+  "supporting_inputs": {
+    ".github/workflows/qualify.yml": "817802fbedd37a3e5d80c834affdb2e3c8de46f4ca4cf370b7a7a5741d917f49"
+  },
+  "referenced_manifests": {
+    "gateway_guard/payload-manifest.json": "50ce7331e220acacf56ef8f0ed7406787ff13c4299a4169ec43c5ec5bb964fae",
+    "inert_fixture_guard/payload-manifest.json": "57d1928e5ed8ea47d3a68c3081f00540342a9780e1e8989f7ae238dfe6f39977",
+    "native_adapter_guard/payload-manifest.json": "8968281a431f37bd33a4f100983ed0f4d5ec4d1198e239b59110e69b5ebc9734"
+  },
+  "native_acceptance": false,
+  "limits": [
+    "Payload input files are inert classifier data, never executable instructions.",
+    "The direct local baseline test run was refused and has not been retried through any runner.",
+    "CI publication, actual CI execution and game-root deployment have not occurred.",
+    "Reader and static-report grammar are deliberately bounded; generic dynamic Python/JavaScript remains conservative."
+  ]
+}
