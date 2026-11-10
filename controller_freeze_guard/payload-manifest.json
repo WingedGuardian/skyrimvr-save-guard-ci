@@ -2,24 +2,25 @@
  "kind": "controller-freeze-scope-v1",
  "baseline_source": "readonly_classifier_guard/candidate.py (deployed 2026-11-10 09:29 -05:00, DEPLOY.json)",
  "baseline_sha256": "1f8dc45eab46fc99f3b90ee34b9e3570266f3e38003ec449781ace17141ea00e",
- "expected_new_methods": 13,
+ "expected_new_methods": 14,
  "baseline_red": {
   "methods": 2,
-  "failing_assertions": 3,
+  "failing_assertions": 5,
   "errors": 0
  },
  "reviewed_changed_declarations": [
   "READ_ONLY_SCRIPT_VERBS",
+  "_bare_single_call",
   "read_only_script_call"
  ],
  "review": "independent read-only review 2026-11-10 (findings 1-3 fixed: test registry built from the guard entry, cd/relative-path rule, write-path modules pinned; 4-6 recorded as limits)",
  "files": {
-  "README.txt": "3f26f4a1517788e069c62b375054853f3ec867502d49a61581427440206f047c",
-  "qualify.py": "526914c6b8dd6d2c8c726c3a5478dc2c477bd27d0fe76e829247d0c3b16ed07d",
-  "test_candidate.py": "702699f5fc65c174ea621f64ee080e652203c74aee11503b45c3da313d08b115",
+  "README.txt": "17ff14b04820dd2a3039f3c5606f62e9b5fecf4d5afee28a309d675778ef0772",
+  "qualify.py": "512c35c982fc8ba71a32e4fd56376a61d41b966a03a5877d90660d87a010be06",
+  "test_candidate.py": "988bee1aef40f3db6e11e718a0bf3ea89214ff89fce6e88eac050e9c6e605005",
   "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
-  "candidate.py": "5a173b983f6e0d04b7d10ac616c7344649c2ec8a5323982f1168429a58e502b5",
-  "candidate.patch": "cdb6c1332bd8a7e05e040e17bf6bbb7a5f3fa61f665b31bb82ae8e8dfe8f89ca",
+  "candidate.py": "14037cae9438adbf6e07b7fe52cf35ef77d9c014e22f2e19a58343d9c892358c",
+  "candidate.patch": "41d40dab3f7e0e061bafee6dd66dd6a4f3024d2f32b6852086f60e6faba521e2",
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
  },
  "supporting_inputs": {
@@ -38,6 +39,7 @@
  "limits": [
   "The eleven pinned gateway files are NOT in this repository; CI proves the mechanism on authored stand-ins and that the entry carries exactly the reviewed hashes (project-pins.json). The live decision-only probe at deploy time proves the real bytes.",
   "A freeze argument naming a configured save folder that does not contain the word Saves is a pre-existing _read_only_tail limit shared with every exempt script; the real folders here all contain it.",
+  "A relative script token is exempt only as one bare call (allow-list by shape); every composed command must name the script by absolute path. The original 2026-11-10 compound command (here-string + relative controller call) is therefore refused by design; the sanctioned run is two commands with the absolute path. Symlink/junction games on an absolute path are pre-existing for every exempt script.",
   "The local test run on the install is expected to be refused by the installed guard (the test source spells save locations and deletes); results come from CI only.",
   "Cached bytecode (__pycache__/*.cpython-310.pyc) of pinned modules is not pinned; -B stops writing, not reading. Pre-existing for every exempt script; the inert fixture packet pins caches for its own entry.",
   "gateway_test_support/qualification.py (consumed-host pins, read-only by construction) is deliberately not pinned: it must change to admit the newly deployed guard and pinning it here would be circular.",

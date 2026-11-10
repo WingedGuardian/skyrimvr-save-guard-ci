@@ -33,19 +33,22 @@ every product edit, so the pin follows the native_batch_run.py precedent (script
 helpers that can act). project-pins.json records the eleven hashes; the Scope test proves
 each appears exactly once in the candidate.
 
-One rule change in read_only_script_call (review finding, HIGH): a RELATIVE script token in
-a command that changes directory keeps its exemption only when every directory change the
-hook can parse (`_cd_targets`: cd, Set-Location, pushd) resolves to the session cwd itself,
-which is the routine `cd "<root>" && ...` prefix these sessions use from the root. A change
-the hook cannot parse (inside a quoted inner command, chdir/sl/Push-Location, GNU env
--C/--chdir, -WorkingDirectory) or one that resolves elsewhere revokes the exemption. The hook
-resolved the token against the session cwd first while the shell runs it from the cd target,
-so an unpinned copy at the target would have run under the pinned copy's exemption; the
-pre-existing gap applied to every exempt script and this entry would have widened it.
-Ordinary inspection still runs on such a command. (v4: the v3 rule refused ANY directory
-change, which would have reopened the October housekeep false refusals; and one v3 contrast
-nested single quotes inside a single-quoted `bash -c` string, which is not the shape it meant
-to test and was allowed in CI 42846415162; it is double-quoted now.)
+One rule change in read_only_script_call plus a helper `_bare_single_call` (review finding,
+HIGH): a RELATIVE script token is exempt only when the whole command is ONE bare call
+(optional PowerShell `&`, the interpreter, flags, the token, plain word arguments; no `;`,
+`&&`, `|`, newline, substitution, redirection, grouping or quoted tail). Everything composed
+must name the script by ABSOLUTE path, which no directory change can redirect. The hook
+resolved a relative token against the session cwd first while the shell runs it from
+wherever the command has moved to, so an unpinned copy there would have run under the pinned
+copy's exemption; the pre-existing gap applied to every exempt script and this entry would
+have widened it. Ordinary inspection still runs on a composed relative call.
+History: v3 refused ANY directory change (would have reopened the October housekeep false
+refusals); v4 allowed changes resolving to the cwd through a word list and `_cd_targets`,
+which the v4 review beat with `cd "<cwd>"/../x`, `cd` + newline, spelled-around words,
+`env -C` and `SetLocation()`; v5 is the allow-list by shape the reviewer recommended. The
+consequence for the gateway: the 2026-11-10 refused command (here-string + relative controller
+call in one command) stays refused by design; the sanctioned run is two commands, the
+here-string alone and then `python -B "<absolute controller.py>" freeze`.
 
 Every other controller verb (prepare, publish, profile, preflight, run, menu-ready,
 loaded, stop, restore), a composed command with another verb, an argument naming a save
@@ -66,8 +69,8 @@ registry is the guard's OWN entry re-pinned to authored stand-ins; the baseline 
 and admits nothing (the first draft patched an authored entry into both guards, which the
 review caught: the baseline could not go red for the right reason, and Ubuntu CI 42842426652
 failed at that gate). The baseline must reproduce two methods / three failing assertions
-(the Pins check and the exact refused command on the Bash and PowerShell tool labels); the
-candidate must pass all 12 methods and the retained read-only 20, inert 16, native-adapter
+(the Pins check and the four admitted sanctioned-call subcases; two methods / five failing
+assertions); the candidate must pass all 14 methods and the retained read-only 20, inert 16, native-adapter
 12 and gateway policy/wrapper/sentinel checks. The eleven real pinned files are NOT in this
 public repository: CI proves the mechanism on authored stand-ins and that the entry carries
 exactly the reviewed hashes; the deploy step proves the real bytes with a live decision-only

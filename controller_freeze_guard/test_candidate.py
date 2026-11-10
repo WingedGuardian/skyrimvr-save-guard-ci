@@ -63,6 +63,10 @@ print({'extra_inputs':len(v['files']),'sampling_plan_sha256':s.campaign.sha(s.PL
 '@ | python -
 python -B '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controller.py' freeze"""
 FREEZE = "python -B '" + SCRIPT + "' freeze"
+# The sanctioned real invocation is two commands: the here-string alone (no script token; allowed by both guards
+# because it spells no save location), then the controller by ABSOLUTE path (v5: a relative token is exempt only as
+# one bare call; the original compound form with a relative token is refused by shape).
+HERESTRING = REFUSED.split("'@ | python -")[0] + "'@ | python -"
 
 
 def digest(data):
@@ -146,12 +150,27 @@ class FreezeExemption(unittest.TestCase):
         value = self.classify(command, tool)
         self.assertEqual(value['kind'], 'allow', (command, value))
 
+    def absolute(self, verb='freeze'):
+        return 'python -B "' + str(self.script) + '" ' + verb
+
     # --- the admitted operation (baseline red: the baseline has no entry) ---
 
-    def test_exact_refused_metadata_freeze_command_is_admitted(self):
+    def test_sanctioned_freeze_calls_are_admitted(self):
+        self.assert_allowed(HERESTRING, 'PowerShell')   # no script token; both guards allow it
+        for name, command, tool in (('bare relative, Bash', FREEZE, 'Bash'), ('bare relative, PowerShell', FREEZE, 'PowerShell'),
+                                    ('absolute', self.absolute(), 'PowerShell'),
+                                    ('absolute after a cd elsewhere', 'cd ../scratch; ' + self.absolute(), 'PowerShell')):
+            with self.subTest(name=name):
+                self.assert_allowed(command, tool)
+
+    def test_original_compound_relative_command_is_refused_by_shape(self):
+        # The 2026-11-10 refused command composed a here-string with a RELATIVE controller call; v5 admits a relative
+        # token only as one bare call, so the compound form stays refused and the real run uses the absolute path.
         for tool in ('Bash', 'PowerShell'):
             with self.subTest(tool=tool):
-                self.assert_allowed(REFUSED, tool)
+                self.assert_protected(REFUSED, tool)
+        self.assert_protected(HERESTRING + '\n' + self.absolute() + '; true', 'PowerShell')   # composed tail
+        self.assert_allowed(HERESTRING + '\n' + self.absolute(), 'PowerShell')               # absolute: composition is fine
 
     # --- what the exemption must not cover (protected under both guards) ---
 
@@ -194,13 +213,16 @@ class FreezeExemption(unittest.TestCase):
             with self.subTest(command=composed):
                 self.assert_protected(composed, 'PowerShell')
 
-    def test_directory_change_to_the_session_folder_itself_keeps_the_exemption(self):
-        # The routine prefix in these sessions: cd into the game root while already there (side agent 2026-11-10).
+    def test_root_itself_prefix_needs_the_absolute_path(self):
+        # The routine `cd "<root>" &&` prefix (side agent 2026-11-10): with a relative token it is composed and
+        # refused by shape (a word list cannot tell `cd "<root>"/../x` from `cd "<root>"`); with the absolute path
+        # it keeps the exemption. Protect-bash's own advice: name the file by absolute path when composing.
         for prefix in ('cd "' + str(self.root) + '" && ', 'cd ' + self.root.as_posix() + '; ',
-                       'Set-Location "' + str(self.root) + '"; ', 'cd . && ', 'pushd "' + str(self.root) + '"; '):
+                       'Set-Location "' + str(self.root) + '"; ', 'cd . && ', 'pushd "' + str(self.root) + '"; ',
+                       'cd "' + str(self.root) + '"/../scratch; ', 'cd\n.\n'):
             with self.subTest(prefix=prefix):
-                self.assert_allowed(prefix + FREEZE)
-                self.assert_allowed(prefix + REFUSED, 'PowerShell')
+                self.assert_protected(prefix + FREEZE)
+                self.assert_allowed(prefix + self.absolute())
 
     def test_changed_controller_bytes_revoke_the_exemption(self):
         self.script.write_bytes(CONTROLLER + b'\n# one more line\n')

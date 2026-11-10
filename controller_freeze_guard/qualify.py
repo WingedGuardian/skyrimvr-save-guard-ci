@@ -118,10 +118,12 @@ def main():
     tests.guard = load(BASELINE, 'freeze_exact_baseline')
     positive = unittest.TestSuite([
         tests.Pins('test_registry_pins_the_real_controller_and_its_reviewed_dependencies'),
-        tests.FreezeExemption('test_exact_refused_metadata_freeze_command_is_admitted')])
+        tests.FreezeExemption('test_sanctioned_freeze_calls_are_admitted')])
     red = run(positive)
-    if (red['methods'], red['failures'], red['errors']) != (2, 3, 0):
-        raise RuntimeError('Baseline did not reproduce two methods/three frozen failing assertions: ' + str(red))
+    # Pins fails once; the sanctioned-call test fails its four admitted subcases (the here-string alone is allowed
+    # by both guards and is not a failure).
+    if (red['methods'], red['failures'], red['errors']) != (2, 5, 0):
+        raise RuntimeError('Baseline did not reproduce two methods/five frozen failing assertions: ' + str(red))
     tests.guard = load(HERE / 'candidate.py', 'freeze_reviewed_candidate')
     fresh = unittest.TestSuite([unittest.defaultTestLoader.loadTestsFromTestCase(tests.Pins),
                                 unittest.defaultTestLoader.loadTestsFromTestCase(tests.FreezeExemption)])

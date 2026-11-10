@@ -527,6 +527,21 @@ def reviewed_inert_fixture_call(script, raw, text, cwd, tool):
         return False
 
 
+def _bare_single_call(raw, text):
+    """True only when the whole command is ONE bare interpreter call of this script token: optional PowerShell `&`,
+    the interpreter (optionally path-qualified or quoted), flags, the token (optionally quoted), plain word arguments,
+    nothing else. No `;`, `&&`, `|`, newline, substitution, redirection, grouping or quoting in the tail: a relative
+    token runs wherever the shell is by then, and everything that can move the shell is excluded by shape, not by a
+    list of directory-change words (review 2026-11-10: `cd "<cwd>"/../x`, `cd` + newline, `c\'\'d`, env -C,
+    SetLocation() all beat a word list)."""
+    quoted = "(?:'" + re.escape(raw) + "'|\"" + re.escape(raw) + "\"|" + re.escape(raw) + ")"
+    interpreter = r'(?:"[^"\n]*[/\\]|\'[^\'\n]*[/\\]|[^\s"\';|&]*[/\\])?(?:python\w*(?:\.\d+)?|py)(?:\.exe)?["\']?'
+    flags = r'(?:[ \t]+-[-\w]+)*'
+    tail = r'(?:[ \t]+[^\s;&|`$(){}<>"\'\\]+)*'
+    return re.fullmatch(r'[ \t]*(?:&[ \t]*)?' + interpreter + flags + r'[ \t]+' + quoted + tail + r'[ \t]*',
+                        text, re.I) is not None
+
+
 def read_only_script_call(script, raw, text, cwd='.', tool=None):
     """Recognize pinned read-only calls, verified non-save plans, or the exact
     user-approved non-save lifecycle. This never grants launch/load consent."""
@@ -543,27 +558,13 @@ def read_only_script_call(script, raw, text, cwd='.', tool=None):
     starts = [m.end() for m in re.finditer(re.escape(raw), text)]
     if not starts:
         return False
-    # A relative script token runs where the SHELL is when it executes, which a directory change earlier in the
-    # command moves, while the hook resolves it against the session cwd first (review 2026-11-10: `cd <scratch>;
+    # A RELATIVE script token runs where the SHELL is when it executes, and anything else in the command may have
+    # moved it, while the hook resolves the token against the session cwd first (review 2026-11-10: `cd <scratch>;
     # python _CLAUDE_OUTPUT/.../controller.py freeze` would be judged by the pinned install copy and run an unpinned
-    # one). The exemption survives only when every directory change the hook can parse resolves to the session cwd
-    # itself (the routine `cd "<root>" && ...` prefix from the root); a change it cannot parse (inside a quoted inner
-    # command, `chdir`/`sl`/`Push-Location`, GNU env -C/--chdir, -WorkingDirectory) or one that resolves elsewhere
-    # revokes it, and ordinary inspection still runs on the command.
-    if not Path(raw).is_absolute() and re.search(
-            r'(?<![\w.-])(?:cd|chdir|set-location|sl|pushd|push-location)(?![\w-])'
-            r'|\benv\b[^;&|\n]*\s(?:-C|--chdir)\b|-workingdirectory\b', text, re.I):
-        words = re.findall(r'(?<![\w.-])(?:cd|chdir|set-location|sl|pushd|push-location|env|-workingdirectory)(?![\w-])',
-                           text, re.I)
-        targets = _cd_targets(text)
-        try:
-            here = Path(cwd).resolve()
-            same = bool(targets) and len(targets) == len(words) and all(
-                (Path(t) if Path(t).is_absolute() else Path(cwd) / t).resolve() == here for t in targets)
-        except OSError:
-            same = False
-        if not same:
-            return False
+    # one). A relative token is exempt only as one bare call; everything composed must name the script by ABSOLUTE
+    # path, which no directory change can redirect. Ordinary inspection still runs on a composed relative call.
+    if not Path(raw).is_absolute() and not _bare_single_call(raw, text):
+        return False
     return any(
         (not spec.get('exact_desktop_args') or (len(starts) == 1 and not re.search(r'[;&|\r\n`]', text)))
         and all(_read_only_tail(spec, text[at:], cwd) for at in starts)
