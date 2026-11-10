@@ -985,7 +985,7 @@ def folder_violation(text, cwd):
             if under(target, BACKUP_ROOT):
                 return 'Save backups are kept forever: deleting, moving or renaming them is blocked.'
             for d in protected_dirs():
-                if os.path.normcase(d).startswith(os.path.normcase(target).rstrip('\\/') + os.sep):
+                if under(d, target):
                     return 'This removes or moves a folder that contains saves or save backups; blocked, approval or not.'
         if RECURSIVE.search(segment) and FOLDER.search(segment) and operation(segment, 'Bash') != 'delete':
             return 'A recursive move inside a Saves folder is blocked. Name the save files instead.'
@@ -2201,6 +2201,21 @@ def _rd_interpreter_view(text):
     return text
 
 
+def _literal_quoted_output(tool, text):
+    """One output command and one inert literal, never a general read shortcut.
+
+    Both supported shells treat this restricted content as output data. Reject
+    composition, expansion, substitution, redirection, escapes and controls even
+    where one shell would quote them safely. Unknown syntax keeps every check.
+    """
+    if tool not in ('Bash', 'PowerShell') or len(text) > 65536:
+        return False
+    found = re.fullmatch(r"[ \t]*(?:echo|write-output)[ \t]+'([^'\r\n]*)'[ \t]*", text, re.I)
+    if found is None:
+        return False
+    return all(char.isprintable() and char not in '$`%!;&|<>()^\\' for char in found[1])
+
+
 def _static_node_report_target(tool, args):
     """One plain-data assignment and one literal fs.writeFile destination.
 
@@ -2815,6 +2830,8 @@ def decide(payload):
         return decision('deny', reason=LOCK_SWITCH_DENY)
     if re.search(r'-(?:encodedcommand|enc)\b|base64\s+-d.*\|\s*(?:bash|sh|python)', text, re.I):
         return decision('deny', reason='Encoded executable commands cannot be checked for save access and are blocked.')
+    if _literal_quoted_output(tool, text):
+        return decision('allow')
     report_target = _static_node_report_target(tool, args)
     if report_target is not None:
         written = _judge_written('write', [report_target], cwd, base, report_target)

@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "reviewer": "/root",
+  "product_author": "/root/planck_extension_feasibility",
+  "disposition": "V2_DELTA_SOURCE_ACCEPTABLE_PENDING_EXACT_HEAD_CI",
+  "previous_review": "PRODUCT-SOURCE-REVIEW.json",
+  "previous_tested_commit": "6241ddba688f6755f6826a63e8cb6b10c5179b71",
+  "previous_ci_run": 42729306928,
+  "candidate_sha256": "0090c3119cea09019d5685d4aafee5a6b2439e5b5567acf1a6cf1c972121dd1b",
+  "manifest_sha256": "59a27a1e9da2af3fba4c0d6dc3ba8ee1001a7912aa8afc5f2f7133d7b3db87b7",
+  "scope": [
+    "Independently read the complete V2 product diff against the failed CI head: eighteen additions and one replacement.",
+    "Configured-root comparison now uses the existing component-boundary containment helper, covering equality as well as ancestors. Permanent backup and other location checks remain in place.",
+    "Literal output recognition requires exactly one named output command and one single-quoted literal. Bounds, full-string matching and prohibited composition, expansion, escape and control characters keep unsupported forms on the existing path.",
+    "Canary, lock and encoded-command checks still precede that recognition. No global empty-set, script, Python or MCP exemption was added.",
+    "The original eighteen method oracles remain unchanged. A nineteenth method adds actual composition, redirection and expression controls. Independent framework review binds all sixty-eight inputs and reconstructs the exact candidate from its patch."
+  ],
+  "evidence": {
+    "previous_ci_windows": "completed_failure",
+    "previous_ci_linux": "completed_failure",
+    "previous_candidate_failed_assertions_each_platform": 4,
+    "previous_candidate_methods_containing_failures_each_platform": 3,
+    "previous_retained_three_packet_steps": "passed_each_platform",
+    "v2_source_only": true,
+    "v2_local_classifier_tests_executed": false,
+    "v2_ci_executed": false,
+    "deployment": false
+  },
+  "limits": [
+    "A later supplementary inspection was refused as command84b54914035c9e15 and was not reproduced. This review relies on the earlier successful complete delta read and historical source review.",
+    "Diagnosis confidence is high; corrected behavioral confidence is provisional until exact-head CI and independent raw review.",
+    "The Windows log saved earlier may have normalized line endings; its existing hash identifies that artifact only, not the original decoded API text.",
+    "The separately refused original audit, local classifier run and log-preservation write remain unexecuted. No native compatibility or host-hook acceptance is established.",
+    "User assigned continued guard investigation to the toolkit session. This packet is an isolated handoff, not shared release, push or deployment authority."
+  ]
+}

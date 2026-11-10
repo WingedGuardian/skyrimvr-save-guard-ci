@@ -47,6 +47,15 @@
      vcwd = cwd
      for segment, _ in split_segments(text):
          word, args = first_word(segment)
+@@ -978,7 +985,7 @@
+             if under(target, BACKUP_ROOT):
+                 return 'Save backups are kept forever: deleting, moving or renaming them is blocked.'
+             for d in protected_dirs():
+-                if os.path.normcase(d).startswith(os.path.normcase(target).rstrip('\\/') + os.sep):
++                if under(d, target):
+                     return 'This removes or moves a folder that contains saves or save backups; blocked, approval or not.'
+         if RECURSIVE.search(segment) and FOLDER.search(segment) and operation(segment, 'Bash') != 'delete':
+             return 'A recursive move inside a Saves folder is blocked. Name the save files instead.'
 @@ -1059,6 +1066,7 @@
      """For find -delete / find -exec rm and recursive deletes that reach saves:
      ('set', files) when the hook can count the matches now, ('uncountable', why), or None
@@ -63,7 +72,7 @@
      if not RECURSIVE.search(text) or operation(text, 'Bash') != 'delete':
          return []
      # Strictly ABOVE: `Saves/*` itself stays the approvable bulk change the rest of the guard counts.
-@@ -1957,6 +1966,350 @@
+@@ -1957,6 +1966,365 @@
              if re.fullmatch(r'-c(?:ommand)?', w, re.I):
                  return _joined(args[i + 1:])
      return None
@@ -302,6 +311,21 @@
 +    return text
 +
 +
++def _literal_quoted_output(tool, text):
++    """One output command and one inert literal, never a general read shortcut.
++
++    Both supported shells treat this restricted content as output data. Reject
++    composition, expansion, substitution, redirection, escapes and controls even
++    where one shell would quote them safely. Unknown syntax keeps every check.
++    """
++    if tool not in ('Bash', 'PowerShell') or len(text) > 65536:
++        return False
++    found = re.fullmatch(r"[ \t]*(?:echo|write-output)[ \t]+'([^'\r\n]*)'[ \t]*", text, re.I)
++    if found is None:
++        return False
++    return all(char.isprintable() and char not in '$`%!;&|<>()^\\' for char in found[1])
++
++
 +def _static_node_report_target(tool, args):
 +    """One plain-data assignment and one literal fs.writeFile destination.
 +
@@ -414,10 +438,12 @@
  
  
  def _tar_writes(args):
-@@ -2462,6 +2815,11 @@
+@@ -2462,6 +2830,13 @@
          return decision('deny', reason=LOCK_SWITCH_DENY)
      if re.search(r'-(?:encodedcommand|enc)\b|base64\s+-d.*\|\s*(?:bash|sh|python)', text, re.I):
          return decision('deny', reason='Encoded executable commands cannot be checked for save access and are blocked.')
++    if _literal_quoted_output(tool, text):
++        return decision('allow')
 +    report_target = _static_node_report_target(tool, args)
 +    if report_target is not None:
 +        written = _judge_written('write', [report_target], cwd, base, report_target)
@@ -426,7 +452,7 @@
      native_adapter = native_adapter_call(text, cwd, base)
      if native_adapter is not None:
          return native_adapter
-@@ -2563,7 +2921,8 @@
+@@ -2563,7 +2938,8 @@
                              why='An invoked script drives in-game save/load through DevBench.', **base)
          # A script that can write counts when its code spells a save LOCATION, or when this command hands it one.
          # A bare .ess mention in its code does not: native_batch_run.py names `.ess` only to REFUSE touching saves.

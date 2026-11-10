@@ -2,7 +2,7 @@
   "kind": "readonly-classifier-scope-v1",
   "baseline_commit": "1e2bf07b59228e2a75dbd5c2aeeb02c37874e54c",
   "baseline_sha256": "19a5a52d28edeafdc487a45a37e92ab6198b2d836503784ca78f0e562190d4bf",
-  "expected_new_methods": 18,
+  "expected_new_methods": 19,
   "baseline_red": {
     "methods": 3,
     "failing_assertions": 4,
@@ -12,6 +12,7 @@
     "Import(names=[alias(name='ast')])",
     "Import(names=[alias(name='io')])",
     "Import(names=[alias(name='tokenize')])",
+    "_literal_quoted_output",
     "_python_c_argument",
     "_python_rd_view",
     "_rd_interpreter_view",
@@ -24,14 +25,14 @@
     "recursive_wildcard_above_saves"
   ],
   "files": {
-    "README.txt": "b98af08ecbd1e03c2a5e461eaacbc3871dfb466c3e8e667a09ba97a4ec70c30f",
-    "qualify.py": "5caee787a9fae8501d999891c5c5e1e487800173a5432dd3b7d8ca1a26fdc6fa",
-    "test_candidate.py": "5ec57db9f1f17bd52b8bb41c07404762eea2dc7ee7ef0553a023c33b2ab9bca9",
+    "README.txt": "69a9f7edce493df39150bd02c2cb5ed6e988ca4c65f527c5c87d02b97aeed673",
+    "qualify.py": "c451bfcd55701687450a0d0bc9fdc04e8b9be0bd66105f4b075d70bb85e8844f",
+    "test_candidate.py": "25209bd0059575489dd26fba6df110d120f53a516c1684da76bf55ed75a2858d",
     "reader-input.txt": "2e3e5603b17eedca27185a71d97cd768e71351dd48f75b33be994310f31be4e5",
     "report-input.json": "0073540d99871f5a2ced2902a569b43d17786d6f3783b95c85b0c0e28a5788a3",
     "restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c",
-    "candidate.py": "f4c63770f2533bdc118dfca3080f8c062865ef9b8b79e74cc189b697496b21f0",
-    "candidate.patch": "11a94bab5485e95b78bcec13a0b49c9676956ef994c17c13d43ed111e3729c0f",
+    "candidate.py": "0090c3119cea09019d5685d4aafee5a6b2439e5b5567acf1a6cf1c972121dd1b",
+    "candidate.patch": "8098ea4473b638cdc67ccf48ad64432dd0005705517c8101e8e452e459713c1a",
     ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
   },
   "supporting_inputs": {
@@ -47,7 +48,12 @@
   "limits": [
     "Payload input files are inert classifier data, never executable instructions.",
     "The direct local baseline test run was refused and has not been retried through any runner.",
-    "CI publication, actual CI execution and game-root deployment have not occurred.",
-    "Reader and static-report grammar are deliberately bounded; generic dynamic Python/JavaScript remains conservative."
-  ]
+    "Reader and static-report grammar are deliberately bounded; generic dynamic Python/JavaScript remains conservative.",
+    "First exact-head CI6241 failed four assertions on both platforms; this corrected source is not executed or published."
+  ],
+  "legacy_baseline_red": {
+    "methods": 3,
+    "failing_assertions": 4,
+    "errors": 0
+  }
 }

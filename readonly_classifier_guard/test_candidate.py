@@ -209,6 +209,20 @@ class Classifier(unittest.TestCase):
             with self.subTest(body=body):
                 self.assertEqual(self.classify('python -c "' + body + '"')['kind'], 'allow')
 
+    def test_literal_output_does_not_admit_composition_redirection_or_expressions(self):
+        folder = self.protected.as_posix()
+        file = (self.protected / 'case-0.ess').as_posix()
+        for text in ("echo 'literal'; rd /s '" + folder + "'",
+                     "echo 'literal' && rd /s '" + folder + "'",
+                     "echo 'literal' | rd /s '" + folder + "'",
+                     "echo 'literal' & rd /s '" + folder + "'",
+                     "echo 'literal' > '" + file + "'",
+                     "Write-Output $(rd -Recurse '" + folder + "')",
+                     "Write-Output (Remove-Item '" + file + "')",
+                     "echo `rd /s '" + folder + "'`"):
+            with self.subTest(text=text):
+                self.assert_protected(text)
+
 
 def load(file, name):
     spec = importlib.util.spec_from_file_location(name, file)

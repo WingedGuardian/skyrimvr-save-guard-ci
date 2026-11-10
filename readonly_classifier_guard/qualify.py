@@ -113,6 +113,15 @@ def main():
     red = run(unittest.TestSuite(tests.Classifier(name) for name in positive))
     if (red['methods'], red['failures'], red['errors']) != (3, 4, 0):
         raise RuntimeError('Baseline did not reproduce three methods/four frozen failing assertions: ' + str(red))
+    # The first exact-head CI exposed these existing baseline defects on both
+    # platforms. Keep their strict safety/read-only oracles; do not rename the
+    # modeled configured directory or discard controls to manufacture a pass.
+    legacy = ('test_plain_output_and_search_do_not_execute_quoted_aliases',
+        'test_python_mutation_twin_cannot_gain_reader_scope',
+        'test_whole_folder_and_backup_store_protection_stays_denied')
+    legacy_red = run(unittest.TestSuite(tests.Classifier(name) for name in legacy))
+    if (legacy_red['methods'], legacy_red['failures'], legacy_red['errors']) != (3, 4, 0):
+        raise RuntimeError('Legacy baseline contrast differs from frozen source/CI evidence: ' + str(legacy_red))
     tests.guard = load(HERE / 'candidate.py', 'readonly_reviewed_candidate')
     fresh = unittest.defaultTestLoader.loadTestsFromTestCase(tests.Classifier)
     if fresh.countTestCases() != packet['expected_new_methods']:
@@ -157,7 +166,8 @@ def main():
     if os.path.lexists(prefix):
         raise RuntimeError('Private bytecode namespace unexpectedly appeared')
     print(json.dumps({'kind': packet['kind'], 'candidate_sha256': sha(HERE / 'candidate.py'),
-        'baseline_red': red, 'new': new_result, 'retained_inert': inert,
+        'baseline_red': red, 'legacy_baseline_red': legacy_red,
+        'new': new_result, 'retained_inert': inert,
         'retained_native_adapter': native_adapter, 'retained_policy_exit': prior_code,
         'source_stable': True, 'actual_host_hook_acceptance': False, 'native_acceptance': False,
         'payload_strings_executed': False, 'actual_game_or_save_operation': False}))

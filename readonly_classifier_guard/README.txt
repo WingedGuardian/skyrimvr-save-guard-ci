@@ -25,11 +25,23 @@ Tests and review gates
 Expected outcomes are frozen in test_candidate.py before candidate execution.
 The baseline must reproduce three methods/four failing assertions (the inline
 Python method has two quotation subcases); the candidate must pass all
-18 methods and retained inert, native-adapter, policy, wrapper and sentinel
+19 methods and retained inert, native-adapter, policy, wrapper and sentinel
 checks. Existing packet inputs remain referenced and unchanged. Source review
 precedes execution; raw result and actual CI jobs must bind the exact final head.
 This folder's .gitattributes preserves exact pinned bytes on checkout, including
 Windows; whitespace in unified-patch context lines is intentional.
+
+First CI outcome and correction
+Run42729306928 tested6241ddba on Windows and Linux. Each prior three-packet step
+passed; the new candidate's18 methods had four assertion failures: two harmless
+literal-output cases were overblocked and two whole-configured-folder controls
+were allowed. Source comparison identifies preexisting baseline behavior, not an
+invalid fixture. The correction retains those oracles, protects exact configured
+roots as well as their ancestors, and recognizes only a bounded literal-output
+grammar. An extra actual composition/redirection/expression method is added.
+The next CI also runs the three legacy baseline methods expecting four failed
+assertions, separately from the original baseline3/four assertion phase. No
+passing result for the corrected candidate exists at this source checkpoint.
 No game, native backend, actual user saves or paid inference is invoked.
 
 The local baseline run was REFUSED BEFORE EXECUTION (identifier01cb543087836403)
