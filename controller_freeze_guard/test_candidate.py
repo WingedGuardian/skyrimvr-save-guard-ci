@@ -216,7 +216,12 @@ class FreezeExemption(unittest.TestCase):
             for verb in ('prepare', 'publish', 'profile', 'preflight', 'run', 'menu-ready', 'loaded', 'stop', 'restore'):
                 with self.subTest(verb=verb):
                     self.assert_allowed("python -B '" + SCRIPT + "' " + verb)
-                    self.assert_allowed('cd .. ; ' + self.absolute(verb), 'PowerShell')
+                    # one verb per command (user ruling 2026-11-10 17:10): no chaining, even by absolute path
+                    self.assert_protected('cd .. ; ' + self.absolute(verb), 'PowerShell')
+                    self.assert_protected(self.absolute(verb) + ' ; ' + self.absolute('stop'))
+                    self.assert_protected(self.absolute(verb) + ' | tee x')
+                    self.assert_protected(self.absolute(verb) + chr(13) + chr(10))
+                    self.assert_allowed(self.absolute(verb), 'PowerShell')
                     self.assert_protected('cd .. ; ' + "python -B '" + SCRIPT + "' " + verb)
             for verb in ('', 'apply', 'load', 'prepare Saves/x.ess', 'run --desktop current', 'stop --force',
                          'restore now', 'loaded -v'):
@@ -306,10 +311,15 @@ class FreezeExemption(unittest.TestCase):
         nbsp = chr(0xa0)
         for glued in ("python -B '" + path + "'freeze", 'python -B "' + path + '"freeze',
                       'python -B ' + path + sep + 'freeze', 'python -B ' + path + nbsp + 'freeze',
-                      'python -B "' + path + '"' + sep + 'freeze'):
+                      'python -B "' + path + '"' + sep + 'freeze',
+                      # review v13: an unmatched quote after an UNQUOTED token opens a string the shell glues on
+                      'python -B ' + path + '" freeze;"', 'python -B ' + path + "' freeze&'",
+                      'python -B ' + path + '" freeze' + chr(10) + '"'):
             with self.subTest(glued=glued[-14:]):
                 self.assert_protected(glued)
         self.assert_allowed(self.absolute())
+        self.assert_allowed('python -B ' + path + ' freeze')            # unquoted control (review v13)
+        self.assert_allowed("python -B '" + path + "' freeze")          # single-quoted control
 
     def test_direct_save_changes_in_the_same_command_stay_protected(self):
         for command in (FREEZE + "; Remove-Item 'modeled-protected-location/case-1.ess'",

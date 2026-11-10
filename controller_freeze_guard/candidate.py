@@ -613,12 +613,21 @@ def read_only_script_call(script, raw, text, cwd='.', tool=None):
     # shell does not (U+001C, U+00A0) would otherwise run a DIFFERENT file under this file's exemption (review v12).
     for at in starts:
         rest = text[at:]
-        if rest[:1] in ('"', "'"):
+        # Strip a closing quote ONLY when it matches the quote right before the token (review v13: after an
+        # unquoted token a quote OPENS a string the shell glues on: <abs>" freeze;" runs `controller.py freeze;`).
+        opener = text[at - len(raw) - 1] if at - len(raw) > 0 else ''
+        if opener in ('"', "'") and rest[:1] == opener:
             rest = rest[1:]
         if rest and rest[0] not in (' ', chr(9)):
             return False
+        # And no quote, backslash or backtick in the exempted words, up to the first command separator.
+        segment = re.split('[;&|' + chr(10) + chr(13) + ']', rest, maxsplit=1)[0]
+        if any(c in segment for c in (chr(34), chr(39), chr(92), chr(96))):
+            return False
     return any(
-        (not spec.get('exact_desktop_args') or (len(starts) == 1 and not re.search(r'[;&|\r\n`]', text)))
+        # exact_verb: one verb per command, no chaining (user ruling 2026-11-10 17:10)
+        (not (spec.get('exact_desktop_args') or spec.get('exact_verb'))
+         or (len(starts) == 1 and not re.search(r'[;&|\r\n`]', text)))
         and all(_read_only_tail(spec, text[at:], cwd) for at in starts)
         and _pinned(script, spec)
         for spec in specs)

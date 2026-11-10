@@ -19,11 +19,11 @@
  "files": {
   "README.txt": "a23e2fc21d9aa160cace0836172781dd314e7c48b8ababb296782f18d76c72f7",
   "qualify.py": "ae4ee8855cc9c165401402d9fba35a3ae6737dc8f36a52dc1c4c7cdc21afcc3e",
-  "test_candidate.py": "01f6740a7407757aee497b5b44b24d4347796c2a4cba23330ff5638d29deea73",
+  "test_candidate.py": "f80ef2781e6caf50ca813d1fd73d040e83414e4095fdce84726815ad1d771dc1",
   "project-pins.json": "e66bdbba10114eb886384a1b3bf9d35ba21b28b75a908f1d8f70ade4b05c66f6",
   "lifecycle-pins.json": "f469a8671a2a57a7b1b41161236a69f00193418aa3bc81505915e4c0445ea027",
-  "candidate.py": "47c297e46426771f9737ac672ab1c9f6bbcdd71f3a3ba290bd4c6669df0d2515",
-  "candidate.patch": "37d2d11496f9b715ab3614624cb7f84b3866a88eb951190cd46ebb903b3489a6",
+  "candidate.py": "25424d147f66d8dede05ad0feec78c3a4623659c800b63ecefc559c7e7ce1a23",
+  "candidate.patch": "34e844a0dd57ff1afb1813bb67f48ead819e3d8b19db1848a398ea78d5b55981",
   ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4",
   "restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c"
  },
