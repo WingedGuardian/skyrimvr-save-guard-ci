@@ -1,0 +1,41 @@
+{
+ "kind": "controller-freeze-scope-v1",
+ "baseline_source": "readonly_classifier_guard/candidate.py (deployed 2026-11-10 09:29 -05:00, DEPLOY.json)",
+ "baseline_sha256": "1f8dc45eab46fc99f3b90ee34b9e3570266f3e38003ec449781ace17141ea00e",
+ "expected_new_methods": 11,
+ "baseline_red": {
+  "methods": 2,
+  "failing_assertions": 3,
+  "errors": 0
+ },
+ "reviewed_changed_declarations": [
+  "READ_ONLY_SCRIPT_VERBS"
+ ],
+ "files": {
+  "README.txt": "e617ed99bc6dd5a58579cd70e1509820694b233f5d24ff011f12738fc81851f4",
+  "qualify.py": "ec71b807b1a9793d3128081ea232825e4aef857bfbaa62ae700ce489fe09d0eb",
+  "test_candidate.py": "8d20639483388267a0cdb58e74627fe8d96bb7b8d9cb32ba22415956ed76555b",
+  "project-pins.json": "384e29c33b4d8f88b6b391c7c1a9a2e7638180cf8d7be2d36880dcf95826b88c",
+  "candidate.py": "7f5304e02f3a410dbeb7c4869503a7e679d6270f6f1d0e3fb892fb65913345ee",
+  "candidate.patch": "f39ccdbba22ef75cdb06aa7f74c10a10a13712cd1c594edc6f61a465686c7e86",
+  ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4"
+ },
+ "supporting_inputs": {
+  ".github/workflows/qualify.yml": "8c3000147accff43db57f77646a852b49860f7ee4acf23baed0621eedba57322",
+  ".gitattributes": "4c2bf40f62560d1637799d3bd85ba152011851759a7efdd52d36a33c8d4b8ca3",
+  "gateway_guard/qualify.py": "b87795cc901d9360dfbae77e088cf433b17a6cdb77f2c4186d9c04c5dd7b088a",
+  "readonly_classifier_guard/restore-save-backup.py": "6e60d376bf706fa9dfaf8834dba15fce2abbda0a92e2ec2068dcbec5ed11936c"
+ },
+ "referenced_manifests": {
+  "gateway_guard/payload-manifest.json": "50ce7331e220acacf56ef8f0ed7406787ff13c4299a4169ec43c5ec5bb964fae",
+  "inert_fixture_guard/payload-manifest.json": "57d1928e5ed8ea47d3a68c3081f00540342a9780e1e8989f7ae238dfe6f39977",
+  "native_adapter_guard/payload-manifest.json": "8968281a431f37bd33a4f100983ed0f4d5ec4d1198e239b59110e69b5ebc9734",
+  "readonly_classifier_guard/payload-manifest.json": "c9889cf886f25cc284acc8420264a8b20f5836128f498e548267c41290af8a8d"
+ },
+ "native_acceptance": false,
+ "limits": [
+  "The five pinned gateway files are NOT in this repository; CI proves the mechanism on authored stand-ins and that the entry carries exactly the reviewed hashes (project-pins.json). The live decision-only probe at deploy time proves the real bytes.",
+  "A freeze argument naming a configured save folder that does not contain the word Saves is a pre-existing _read_only_tail limit shared with every exempt script; the real folders here all contain it.",
+  "The local test run on the install is expected to be refused by the installed guard (the test source spells save locations and deletes); results come from CI only."
+ ]
+}

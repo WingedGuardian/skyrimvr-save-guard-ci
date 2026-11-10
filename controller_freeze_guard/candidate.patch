@@ -1,0 +1,22 @@
+--- a/protect-save-access.py
++++ b/protect-save-access.py
+@@ -336,6 +336,19 @@
+                                                                                                        '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/install-native.py': '5fc0c451135ac8cf69bf98c33845cef77eb3b0a3686ab9479062feda8ad27e69',
+                                                                                                        'tools/skyrim-souls-vr/diagnostic/build.py': 'c1ca29052873a43248fb32568120bc088370e18b4d34b833d08708143fd6b57e',
+                                                                                                        '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/reference_adapter.py': '9bb7f88bc380d6b416bfeab26f357e53c38eaea7b0836c960b5594e1db310201'}},
++ # Gateway loaded-engine parent (user ruling 2026-11-10, option A): `controller.py freeze` writes run METADATA only
++ # (frozen source hashes, publication/profile PLANS with application disabled, a pair REQUEST for the separately guarded
++ # qualified binding). It spells the save folder because it hashes the source pair and checks the destination pair is
++ # absent, which are reads. Every other verb (prepare, publish, profile, preflight, run, menu-ready, loaded, stop,
++ # restore) stays under ordinary inspection. Pinned: the script and the four code files its freeze path calls into;
++ # a change to any of them revokes this entry (fail closed), as happened to the native_batch_run.py entry above.
++ '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controller.py': {
++     'sha256': {'d7849a51e17710f718eaec527a16beee9c80248eeed4d50811685434af619198'},
++     'verbs': {'freeze'},
++     'dependencies': {'_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/native_run.py': '9f269bdbd1b5edc6984b0576028e496c5d7000562de052557516d2d9f259b777',
++                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/engine_parent/controlled_profile.py': 'e8298de90d41159f264273684341b9955ee1d496484ad2672a7ca23fa8eeba3b',
++                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/addon-migration-2026-11-09/goal_launch_authority.py': '061180c63590df4574fdc6306411ad4e00534808b8cc72d68e6a91f78c5f6bce',
++                      '_CLAUDE_OUTPUT/output-guard/guardian/mvp-closeout-2026-10-28/stage/tools/skyrimnet-output-guard/install-native.py': '13edef5dff9d560210039b39c9b41524ddc1bb84f97f0d143eaaf29dd9da6cd0'}},
+  'tools/housekeep.py': {'sha256': {'388db95fcfff7aec90d88bf0045c85244bb18906f590e81c774083ea501ad556'},
+                         'verbs': {'', '--help', 'version', '-h', 'plan', 'report'},
+                         'plan_verbs': {'apply'}}}

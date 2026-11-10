@@ -39,3 +39,5 @@ jobs:
         run: python -B native_adapter_guard/qualify.py
       - name: Contextual read-only classification and retained preservation controls
         run: python -E -s -B -X pycache_prefix=readonly_classifier_guard/no-pyc readonly_classifier_guard/qualify.py
+      - name: Reviewed controller freeze exemption and retained controls
+        run: python -E -s -B -X pycache_prefix=controller_freeze_guard/no-pyc controller_freeze_guard/qualify.py
