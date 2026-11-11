@@ -1,0 +1,18 @@
+{
+  "description": "Skyrim install guard for Codex: protect-bash refuses a delete of the game root, Data, the config folder, a Saves folder, a backup store or the save vault. Codex on Windows runs PowerShell under tool_name Bash, so the hook is passed the word codex.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/PROGRA~1/Git/bin/bash.exe \"C:/GOG Games/The Elder Scrolls V Skyrim VR/.claude/hooks/protect-bash.sh\" codex",
+            "timeout": 30,
+            "statusMessage": "protect-bash: checking the command"
+          }
+        ]
+      }
+    ]
+  }
+}

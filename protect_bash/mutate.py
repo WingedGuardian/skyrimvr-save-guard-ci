@@ -57,6 +57,7 @@ M = [
     ('include-plain-name', 'all(p not in ALL_OF and any(c in p for c in "*?[") for p in parts)', 'all(p not in ALL_OF for p in parts)'),
     ('include-every-part', 'all(p not in ALL_OF and any(c in p for c in "*?[") for p in parts)', 'any(p not in ALL_OF and any(c in p for c in "*?[") for p in parts)'),
     ('exclude-never-narrows', '        if flag in ("-include", "-filter"):', '        if flag in ("-include", "-filter", "-exclude"):'),
+    ('codex-shell-override', ' or env.get("PROTECT_BASH_SHELL") == "powershell"', ''),
     ('vault-protected', '    inside[norm(os.path.join(local_appdata(env), "modding-agent-harness", "save-vault"))] = "the save vault"', '    pass'),
 ]
 surv = []

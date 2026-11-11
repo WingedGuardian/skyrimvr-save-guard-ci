@@ -27,7 +27,8 @@ a `<<WORD` inside a quoted string can hide the LATER LINES of the same command f
 a comma list continued on the next line, a here-string whose last line ends in a backtick; `cmd /c` text is read by the PowerShell rules, so a `#` or `'` in it (literal
 characters in cmd) can hide the rest of that string. Nothing here reads a command's text for words: a command that only MENTIONS a protected folder is never refused.
 
-    stdin: the PreToolUse payload. env: INSTALL_ROOT[_WIN], SKYRIM_CONFIG_DIR, SKYRIM_GAME_ROOT (from the paths file).
+    stdin: the PreToolUse payload. env: INSTALL_ROOT[_WIN], SKYRIM_CONFIG_DIR, SKYRIM_GAME_ROOT (from the paths file),
+    PROTECT_BASH_SHELL=powershell (the command is PowerShell whatever tool_name says: Codex on Windows).
     stdout: one line, the refusal reason, or nothing. Exit 0 either way; a crash exits 1 (the caller then refuses).
 """
 from __future__ import annotations
@@ -306,7 +307,8 @@ def judge_operand(word, cwd, protected, env, assigned, windows_root=False, narro
 def check(payload, env, _depth=0):
     tool_input = payload.get("tool_input") or {}
     command = tool_input.get("command") or ""
-    powershell = payload.get("tool_name") == "PowerShell"
+    # Codex on Windows runs PowerShell under tool_name "Bash": its registration sets PROTECT_BASH_SHELL
+    powershell = payload.get("tool_name") == "PowerShell" or env.get("PROTECT_BASH_SHELL") == "powershell"
     cwd = payload.get("cwd") or None
     cwd = norm(cwd) if cwd else None
     return check_text(command, powershell, cwd, env, _depth)

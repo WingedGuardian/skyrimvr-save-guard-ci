@@ -9,6 +9,10 @@
 # the user's decision (no rule here asks since 2026-11-10).
 
 HOOK_NAME="protect-bash"
+# Codex on Windows runs PowerShell but reports tool_name "Bash" (MEASURED codex-cli 0.167.1, 2026-11-11). Its
+# registration passes the word `codex`, and the delete check then reads the command as PowerShell.
+HOST_SHELL=""
+[ "${1:-}" = "codex" ] && HOST_SHELL="powershell"
 JQ="$(command -v jq 2>/dev/null)"
 [ -n "$JQ" ] || JQ="${LOCALAPPDATA//\\//}/Microsoft/WinGet/Links/jq.exe"
 
@@ -236,6 +240,7 @@ DELETE_PY="${LOCALAPPDATA//\\//}/Programs/Python/Python310/python.exe"
 if echo "$COMMAND" | grep -qiE "$DESTROYER"; then
     DEL_REASON=$(printf '%s' "$INPUT" | INSTALL_ROOT="$INSTALL_ROOT" INSTALL_ROOT_WIN="$INSTALL_ROOT_WIN" \
         SKYRIM_CONFIG_DIR="${SKYRIM_CONFIG_DIR:-}" SKYRIM_GAME_ROOT="${SKYRIM_GAME_ROOT:-}" \
+        PROTECT_BASH_SHELL="$HOST_SHELL" \
         "$DELETE_PY" -I -B "$INSTALL_ROOT/.claude/hooks/protect-bash-deletes.py" 2>&1)
     DEL_RC=$?
     [ "$DEL_RC" -ne 0 ] && deny "BLOCKED: the delete check could not run (${DEL_REASON:0:300}). Repair .claude/hooks/protect-bash-deletes.py; do not bypass it."

@@ -1,6 +1,7 @@
 """The staged protect-bash.sh, run as a real process the way Claude Code runs it (payload on stdin), against a fake
 game root, so its own location gives INSTALL_ROOT. Decision only: no command in a payload is ever executed."""
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -23,10 +24,10 @@ def root(tmp_path_factory):
     return r
 
 
-def decide(root, command, cwd=None, tool="Bash"):
+def decide(root, command, cwd=None, tool="Bash", host=()):
     payload = {"tool_name": tool, "tool_input": {"command": command}, "cwd": cwd or str(root.parent),
                "hook_event_name": "PreToolUse"}
-    r = subprocess.run([BASH, str(root / ".claude" / "hooks" / "protect-bash.sh")], input=json.dumps(payload),
+    r = subprocess.run([BASH, str(root / ".claude" / "hooks" / "protect-bash.sh"), *host], input=json.dumps(payload),
                        capture_output=True, text=True, timeout=60)
     out = r.stdout.strip()
     if not out:
@@ -91,3 +92,24 @@ def test_a_broken_delete_helper_refuses_rather_than_allows(root, tmp_path):
     (hooks / "protect-bash-deletes.py").write_text("raise SystemExit(3)\n")
     d, why = decide(broken, "rm -rf /c/Temp/x")
     assert d == "deny" and "could not run" in why
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows path spelling")
+def test_the_codex_registration_reads_bash_named_commands_as_powershell(root):
+    """Codex on Windows: tool_name "Bash", PowerShell text (MEASURED codex-cli 0.167.1). Its registration passes `codex`."""
+    cmd = 'Remove-Item -Path "C:\\Temp\\x","%s\\Data" -Recurse' % str(root)
+    assert decide(root, cmd)[0] == "allow"                          # read as Bash, the comma list is one odd word
+    d, why = decide(root, cmd, host=("codex",))
+    assert d == "deny" and "Data folder" in why
+
+
+def test_the_codex_registration_file_passes_the_word_codex():
+    """MEASURED codex-cli 0.167.1: a hook command whose first token is quoted fails to start, and a hook that fails to
+    start is an ALLOW. So Git Bash is named by an unquoted absolute short path, never looked up on PATH."""
+    cfg = json.loads((HERE / "codex-hooks.json").read_text(encoding="utf-8"))
+    (group,) = cfg["hooks"]["PreToolUse"]
+    (hook,) = group["hooks"]
+    assert group["matcher"] == "^Bash$"                              # apply_patch text is not a command
+    assert hook["command"].startswith("C:/PROGRA~1/Git/bin/bash.exe ")
+    assert hook["command"].endswith('/.claude/hooks/protect-bash.sh" codex')
+    assert hook["timeout"] == 30

@@ -251,6 +251,15 @@ def test_include_star_or_exclude_does_not_narrow():
     assert judge('Remove-Item "%s\\*" -Include Data -Recurse' % GW, "PowerShell")        # a plain name is no filter
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows path spelling")
+def test_codex_powershell_under_the_name_bash_is_read_as_powershell():
+    """MEASURED codex-cli 0.167.1: tool_name is "Bash" and the command is PowerShell text."""
+    cmd = 'Remove-Item -Path "C:\\Temp\\x","%s" -Recurse' % GW          # a comma list is PowerShell only
+    payload = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": "C:/Temp"}
+    assert pbd.check(payload, ENV) is None
+    assert pbd.check(payload, dict(ENV, PROTECT_BASH_SHELL="powershell"))
+
+
 def test_a_crlf_here_string_is_data():
     body = "$s = @'\r\nDon't\r\nRemove-Item -Recurse '%s'\r\n'@\r\nWrite-Host $s" % GW
     assert judge(body, "PowerShell") is None

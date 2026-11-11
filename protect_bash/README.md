@@ -12,3 +12,12 @@ or anything inside the save vault. It is a simple best-effort rule; its docstrin
 - `mutate.py`: one mutant per clause; each must turn the decision tests red. Runs on Windows, the OS the hook is
   deployed on: PowerShell commands with backslash paths are Windows spellings and are skipped on other systems.
 - `MANIFEST.sha256` / `verify_manifest.py`: the packet bytes CI ran on.
+
+## Codex (added 2026-11-11)
+
+`codex-hooks.json` is the install's `.codex/hooks.json`. Measured on codex-cli 0.167.1 (Windows): a Codex payload has
+tool_name "Bash" and PowerShell text, so the registration passes the word `codex` and the delete check reads the
+command as PowerShell. Known limits: a hook that fails to start is an ALLOW in Codex (so Git Bash is named by absolute
+path and the deploy is proven with a real Codex canary); if Codex is ever set to run Git Bash, commands are still read
+as PowerShell; `apply_patch` is not checked (patch text is not a command), so a `*** Delete File:` inside the save
+vault is not refused by this hook; Codex must be told to trust the hook once (`/hooks`).
