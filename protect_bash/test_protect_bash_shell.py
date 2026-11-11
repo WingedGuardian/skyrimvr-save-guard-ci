@@ -113,3 +113,21 @@ def test_the_codex_registration_file_passes_the_word_codex():
     assert hook["command"].startswith("C:/PROGRA~1/Git/bin/bash.exe ")
     assert hook["command"].endswith('/.claude/hooks/protect-bash.sh" codex')
     assert hook["timeout"] == 30
+
+
+def test_session_start_reports_the_save_vault_watcher_on_both_hosts():
+    """The alert when the watcher stops: each host's SessionStart runs the pinned vault's own `status`, which prints
+    `save vault: NOT RUNNING (...)` for a missing or stale heartbeat. MEASURED 2026-11-11: the line reaches a Claude
+    session and a codex-cli 0.167.1 session. A registration only; no new code."""
+    claude = json.loads((HERE / "claude-sessionstart-hook.json").read_text(encoding="utf-8"))
+    codex = json.loads((HERE / "codex-hooks.json").read_text(encoding="utf-8"))
+    (group,) = codex["hooks"]["SessionStart"]
+    (codex_hook,) = group["hooks"]
+    # `status` exits 1 exactly when the watcher is down, and a failed SessionStart hook's output is dropped: so each
+    # command ends by exiting 0 in its host's shell (Git Bash for Claude, PowerShell for Codex). MEASURED with an
+    # empty vault folder: both sessions received the NOT RUNNING line.
+    for hook, home, project, tail in ((claude, "$HOME", '"$CLAUDE_PROJECT_DIR"', " || true"),
+                                      (codex_hook, "$env:USERPROFILE", '"C:/GOG Games/The Elder Scrolls V Skyrim VR"', "; exit 0")):
+        assert hook["type"] == "command" and hook["timeout"] == 30
+        assert hook["command"] == ('py -3.10 -I "%s/Projects/save-vault-pinned/tools/save_vault.py" --project %s status%s'
+                                   % (home, project, tail))

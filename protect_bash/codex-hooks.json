@@ -1,6 +1,18 @@
 {
-  "description": "Skyrim install guard for Codex: protect-bash refuses a delete of the game root, Data, the config folder, a Saves folder, a backup store or the save vault. Codex on Windows runs PowerShell under tool_name Bash, so the hook is passed the word codex.",
+  "description": "Skyrim install guard for Codex: protect-bash refuses a delete of the game root, Data, the config folder, a Saves folder, a backup store or the save vault. Codex on Windows runs PowerShell under tool_name Bash, so the hook is passed the word codex. A SessionStart hook prints whether the save vault watcher is running.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3.10 -I \"$env:USERPROFILE/Projects/save-vault-pinned/tools/save_vault.py\" --project \"C:/GOG Games/The Elder Scrolls V Skyrim VR\" status; exit 0",
+            "timeout": 30,
+            "statusMessage": "Checking the save vault"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "^Bash$",

@@ -1,0 +1,6 @@
+{
+  "type": "command",
+  "command": "py -3.10 -I \"$HOME/Projects/save-vault-pinned/tools/save_vault.py\" --project \"$CLAUDE_PROJECT_DIR\" status || true",
+  "timeout": 30,
+  "statusMessage": "Checking the save vault..."
+}

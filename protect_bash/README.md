@@ -21,3 +21,12 @@ command as PowerShell. Known limits: a hook that fails to start is an ALLOW in C
 path and the deploy is proven with a real Codex canary); if Codex is ever set to run Git Bash, commands are still read
 as PowerShell; `apply_patch` is not checked (patch text is not a command), so a `*** Delete File:` inside the save
 vault is not refused by this hook; Codex must be told to trust the hook once (`/hooks`).
+
+## Save-vault watcher alert (added 2026-11-11)
+
+`claude-sessionstart-hook.json` (one entry added to the install's `.claude/settings.json` SessionStart list) and the
+SessionStart group in `codex-hooks.json` run the pinned save vault's own `status` command at session start. It reads
+one small heartbeat file per vault and prints `save vault: running (...)` or `save vault: NOT RUNNING (...)`. `status`
+exits 1 when the watcher is down and a failed SessionStart hook's output is dropped, so each command ends by exiting
+0 in its host's shell. Measured with an empty vault folder: a Claude session and a codex-cli 0.167.1 session both
+received the NOT RUNNING line. No hook code is added.
