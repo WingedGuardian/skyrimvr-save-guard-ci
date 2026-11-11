@@ -33,3 +33,29 @@ jobs:
           python -m pip install --only-binary=:all: --require-hashes -r requirements.lock
       - name: Exact packet policy and preservation checks
         run: python gateway_guard/qualify.py
+
+  protect-bash:
+    name: protect-bash delete rule (${{ matrix.os }}, Python 3.10)
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.10"
+      - name: Install locked dependencies
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r protect_bash/requirements.lock
+      - name: Packet bytes match the manifest
+        run: python protect_bash/verify_manifest.py
+      - name: Delete rule and hook tests
+        run: python -m pytest -q -p no:cacheprovider protect_bash
+      - name: Mutants (one per clause, each must be killed)
+        run: python protect_bash/mutate.py
