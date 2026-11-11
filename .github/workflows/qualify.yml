@@ -60,3 +60,10 @@ jobs:
       - name: Mutants (one per clause, each must be killed)
         if: runner.os == 'Windows'   # Windows path spellings are skipped elsewhere, so the gate is the deployment OS
         run: python protect_bash/mutate.py
+      - name: Save sentinel (auto-lock exemption for agent test saves)
+        if: runner.os == 'Windows'   # save locks are NTFS only
+        working-directory: save_sentinel
+        run: |
+          python -c "import hashlib,sys,pathlib; bad=[l for l in open('MANIFEST.sha256').read().splitlines() if hashlib.sha256(pathlib.Path(l.split('  ',1)[1]).read_bytes()).hexdigest()!=l.split('  ',1)[0]]; print('manifest', 'DIFF' if bad else 'ok', bad); sys.exit(1 if bad else 0)"
+          python -B -m unittest -v test_save_sentinel
+          python -B sentinel_mutants.py save-sentinel.py test_save_sentinel.py

@@ -1,4 +1,5 @@
 # Packet bytes are pinned by SHA-256: never convert line endings on checkout.
 gateway_guard/** -text
 protect_bash/** -text
+save_sentinel/** -text
 requirements.lock -text
