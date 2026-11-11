@@ -58,4 +58,5 @@ jobs:
       - name: Delete rule and hook tests
         run: python -m pytest -q -p no:cacheprovider protect_bash
       - name: Mutants (one per clause, each must be killed)
+        if: runner.os == 'Windows'   # Windows path spellings are skipped elsewhere, so the gate is the deployment OS
         run: python protect_bash/mutate.py

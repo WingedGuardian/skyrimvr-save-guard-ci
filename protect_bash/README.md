@@ -9,5 +9,6 @@ or anything inside the save vault. It is a simple best-effort rule; its docstrin
 - `protect-bash.sh`, `protect-bash-deletes.py`: the two files that are deployed, byte for byte.
 - `test_protect_bash_deletes.py`: the rule's decisions. `test_protect_bash_shell.py`: the hook run as a process
   against a fake game root. No command in any payload is executed.
-- `mutate.py`: one mutant per clause; each must turn the decision tests red.
+- `mutate.py`: one mutant per clause; each must turn the decision tests red. Runs on Windows, the OS the hook is
+  deployed on: PowerShell commands with backslash paths are Windows spellings and are skipped on other systems.
 - `MANIFEST.sha256` / `verify_manifest.py`: the packet bytes CI ran on.
