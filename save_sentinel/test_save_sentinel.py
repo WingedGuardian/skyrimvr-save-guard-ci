@@ -164,6 +164,24 @@ class Sentinel(SentinelCase):
         self.assertEqual({'Play_ShinsoObserver_Headless_.ess', 'Play_ShinsoObserver_Headless_.skse'},
                          {n for k, n in calls if k == 'file'})
 
+    def test_ssso_rotating_autosave_slots_are_never_auto_locked(self):
+        """2026-11-17: SSSO overwrites its AutoRotate slots in place; a lock made every autosave fail. Look-alikes still lock."""
+        fake, calls = self.fake_locks()
+        old = time.time() - 3600
+        for stem in ('Save0_0A1B2C3D_0_4E616D65_AutoRotate_0_20260101000000_1_1',
+                     'save9_0a1b2c3d_0_4e616d65_autorotate_9_x',
+                     'Save12_0A1B2C3D_0_4E616D65_Tamriel_000123_20260101000000_1_1',
+                     'MyNotes_AutoRotate_0_'):
+            for ext in ('.ess', '.skse'):
+                p = self.saves / (stem + ext); p.write_bytes(b'e'); os.utime(p, (old, old))
+        with patch.object(sentinel, 'save_lock_module', lambda: fake), \
+                patch.object(sentinel, 'lock_config', lambda: {'enabled': True}):
+            self.step(); self.step()
+        self.assertEqual({'Save12_0A1B2C3D_0_4E616D65_Tamriel_000123_20260101000000_1_1.ess',
+                          'Save12_0A1B2C3D_0_4E616D65_Tamriel_000123_20260101000000_1_1.skse',
+                          'MyNotes_AutoRotate_0_.ess', 'MyNotes_AutoRotate_0_.skse'},
+                         {n for k, n in calls if k == 'file'})
+
     def test_an_elevated_session_is_raised_once_while_locking_is_on(self):
         for enabled, elevated, expect in ((True, True, True), (True, False, False), (False, True, False)):
             STATE_FILE = sentinel.STATE

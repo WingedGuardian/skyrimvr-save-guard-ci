@@ -252,6 +252,10 @@ LOCK_VERIFY_S = 3600
 # every next test run. The save vault still keeps every version of them. The list lives in this reviewed file, not in
 # save-lock.json, so widening it is a hook change (review + CI) and never an edit to the locked switch.
 NEVER_AUTO_LOCK = re.compile(r'^ShinsoObserver_Headless_', re.I)
+# Skyrim Save System Overhaul's rotating autosave slots (SaveN_<id>_<n>_<hexname>_AutoRotate_<slot>_...) are overwritten
+# in place every few minutes, like Autosave/Quicksave: a lock makes each new save fail silently and leave only an
+# .ess.tmp (found 2026-11-17: every SSSO autosave since 2026-10-31 had failed). The vault keeps every version.
+SSSO_ROTATION = re.compile(r'^Save\d+_[0-9A-F]+_\d+_[0-9A-F]+_AutoRotate_\d+_', re.I)
 
 
 def lock_config():
@@ -300,7 +304,7 @@ def auto_lock(state, files, folders, now):
             continue                       # locked, and not changed since the last look: nothing to do
         name = os.path.basename(path)
         if NEVER_AUTO_LOCK.match(name) or (not cfg.get('include_rotating') and sl.ROTATING.match(name)) \
-                or now - mtime / 1e9 < sl.SETTLE_S:
+                or SSSO_ROTATION.match(name) or now - mtime / 1e9 < sl.SETTLE_S:
             locked.pop(key, None)
             continue
         try:

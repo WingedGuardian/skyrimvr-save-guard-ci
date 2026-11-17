@@ -9,3 +9,7 @@ Not changed: saves that are already locked stay locked until the user unlocks th
 `save_lock.py lock` / `on` still locks test saves.
 
 Save locks are Windows/NTFS only, so CI runs this packet on the Windows leg.
+
+## 2026-11-17: SSSO rotating autosave slots
+
+Skyrim Save System Overhaul's timed autosaves overwrite ten slots named `SaveN_<id>_<n>_<hexname>_AutoRotate_<slot>_...` in place, like Autosave/Quicksave. A locked slot made every new autosave fail silently and leave only an `.ess.tmp`. The sentinel no longer auto-locks those slots (`SSSO_ROTATION`); look-alike names still lock. Already-locked slots need the user's elevated unlock.
