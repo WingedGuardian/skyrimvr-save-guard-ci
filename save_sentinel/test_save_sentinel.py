@@ -171,7 +171,8 @@ class Sentinel(SentinelCase):
         for stem in ('Save0_0A1B2C3D_0_4E616D65_AutoRotate_0_20260101000000_1_1',
                      'save9_0a1b2c3d_0_4e616d65_autorotate_9_x',
                      'Save12_0A1B2C3D_0_4E616D65_Tamriel_000123_20260101000000_1_1',
-                     'MyNotes_AutoRotate_0_'):
+                     'MyNotes_AutoRotate_0_',
+                     'Save12_0A1B2C3D_0_4E61_AutoRotateCave_000123_x'):
             for ext in ('.ess', '.skse'):
                 p = self.saves / (stem + ext); p.write_bytes(b'e'); os.utime(p, (old, old))
         with patch.object(sentinel, 'save_lock_module', lambda: fake), \
@@ -179,7 +180,9 @@ class Sentinel(SentinelCase):
             self.step(); self.step()
         self.assertEqual({'Save12_0A1B2C3D_0_4E616D65_Tamriel_000123_20260101000000_1_1.ess',
                           'Save12_0A1B2C3D_0_4E616D65_Tamriel_000123_20260101000000_1_1.skse',
-                          'MyNotes_AutoRotate_0_.ess', 'MyNotes_AutoRotate_0_.skse'},
+                          'MyNotes_AutoRotate_0_.ess', 'MyNotes_AutoRotate_0_.skse',
+                          'Save12_0A1B2C3D_0_4E61_AutoRotateCave_000123_x.ess',
+                          'Save12_0A1B2C3D_0_4E61_AutoRotateCave_000123_x.skse'},
                          {n for k, n in calls if k == 'file'})
 
     def test_an_elevated_session_is_raised_once_while_locking_is_on(self):

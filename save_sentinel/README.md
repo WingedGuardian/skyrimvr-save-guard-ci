@@ -1,6 +1,6 @@
-# save-sentinel packet (2026-11-11)
+# save-sentinel packet (2026-11-11, extended 2026-11-17)
 
-The install's PostToolUse save sentinel with one change: agent test saves named `ShinsoObserver_Headless_*` are never
+The install's PostToolUse save sentinel with two changes. First (2026-11-11): agent test saves named `ShinsoObserver_Headless_*` are never
 auto-locked (user ruling 2026-11-10). A locked test copy needed an elevated unlock before every next test run. The
 sentinel still reports changes to them, and the save vault keeps every version. The exemption is a constant in the
 hook file, not a key in the locked `save-lock.json`, so widening it is a reviewed hook change.

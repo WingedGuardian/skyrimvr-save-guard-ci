@@ -27,6 +27,8 @@ TWINS = [
      'test_save_sentinel.Sentinel.test_ssso_rotating_autosave_slots_are_never_auto_locked'),
     ('ssso-exemption-too-broad', r"re.compile(r'^Save\d+_[0-9A-F]+_\d+_[0-9A-F]+_AutoRotate_\d+_', re.I)", r"re.compile(r'.*AutoRotate', re.I)",
      'test_save_sentinel.Sentinel.test_ssso_rotating_autosave_slots_are_never_auto_locked'),
+    ('ssso-exemption-loose-field', r"_AutoRotate_\d+_', re.I)", r".*AutoRotate', re.I)",
+     'test_save_sentinel.Sentinel.test_ssso_rotating_autosave_slots_are_never_auto_locked'),
     ('ssso-exemption-case-sensitive', r"re.compile(r'^Save\d+_[0-9A-F]+_\d+_[0-9A-F]+_AutoRotate_\d+_', re.I)", r"re.compile(r'^Save\d+_[0-9A-F]+_\d+_[0-9A-F]+_AutoRotate_\d+_')",
      'test_save_sentinel.Sentinel.test_ssso_rotating_autosave_slots_are_never_auto_locked'),
 ]
