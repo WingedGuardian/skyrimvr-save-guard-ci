@@ -1,4 +1,7 @@
-"""PreToolUse guard: refuse launching helpers DETACHED (Windows DETACHED_PROCESS) or into a NEW visible console.
+"""PreToolUse guard: refuse launching helpers DETACHED (Windows DETACHED_PROCESS).
+
+Scope (user, 2026-11-24): only the pattern that causes pop-up SPAM. Deliberately visible terminal work (a new console
+window, CREATE_NEW_CONSOLE, Start-Process, a terminal the user opens) is NOT refused.
 
 User rule (2026-11-14, CLAUDE.md "No visible helper consoles"). MEASURED 2026-11-24: an agent's driver started
 tools/vr-headless.py with creationflags NO_WINDOW | NEW_PROCESS_GROUP | DETACHED_PROCESS. A detached process has no
@@ -17,9 +20,9 @@ What is checked:
   Commit messages and search patterns are quoted arguments of other commands and are not judged.
 Refused, per logical statement (bracketed and `|`-continued lines joined, at most 50 lines; comments, docstrings and
 string contents blanked to the same length):
-- DETACHED_PROCESS, or CREATE_NEW_CONSOLE without a hiding STARTUPINFO (SW_HIDE in the same text), used as a flag
-  (creationflags / Popen / CreateProcess / spawn / `|` / `|=` / assignment) and not negated with `~`;
-- a creationflags value holding an integer literal with bit 0x8, or 0x10 without a hiding STARTUPINFO;
+- DETACHED_PROCESS used as a flag (creationflags / Popen / CreateProcess / spawn / `|` / `|=` / assignment) and not
+  negated with `~`;
+- a creationflags value holding an integer literal with bit 0x8;
 - Node `detached: true` / `.detached = true` (libuv sets DETACHED_PROCESS on Windows).
 Unreadable input fails OPEN; the refusal is a JSON deny (Claude Code and Codex). Each parsed payload writes a
 heartbeat for tools/hook-canary.sh; an unparseable one writes the .blind marker.
@@ -32,7 +35,7 @@ import sys
 import time
 import tokenize
 
-NAMES = r"(?:DETACHED_PROCESS|CREATE_NEW_CONSOLE)"
+NAMES = r"(?:DETACHED_PROCESS)"
 NAMED = re.compile(r"(?<![\w.])(?:[A-Za-z_]\w*\.)*" + NAMES + r"\b")
 NAMED_USE = re.compile(r"creation_?flags|Popen|CreateProcess|spawn|(?<!\\)\||\|=|(?<![=!<>])=(?!=)")
 FLAGS = re.compile(r"creation_?flags[\"'\]]*\s*(?:[=:(]|\|=)\s*", re.I)
@@ -40,7 +43,6 @@ QUOTED = re.compile(r"\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'")
 QUOTED_ML = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'")  # shell quoting: may span lines; '...' has no escapes
 LITERAL = re.compile(r"(~\s*\(?\s*)?(?<![\w.])(0[xX][0-9a-fA-F]+|\d+)(?![\w.])")
 NODE_DETACHED = re.compile(r"""(?:\bdetached["']?\s*:|\.detached\s*=)\s*true\b""")
-HIDING = re.compile(r"SW_HIDE|wShowWindow\s*=\s*0\b")
 CODE_FILES = (".py", ".pyw", ".pyi", ".ps1", ".psm1", ".psd1", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".cs",
               ".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".ahk", ".bat", ".cmd", ".sh", ".bash", ".zsh", ".vbs",
               ".rs", ".go", ".java", ".ipynb")
@@ -222,15 +224,12 @@ def flag_values(bare):
     return out
 
 
-def bad_statement(code, hiding):
-    """True when one logical statement (comments/docstrings already blanked) launches detached / new console."""
+def bad_statement(code):
+    """True when one logical statement (comments/docstrings already blanked) launches detached."""
     bare = blank_strings(code)
-    hidden_console = hiding and "startupinfo" in bare.lower()
     for m in NAMED.finditer(bare):
         if re.search(r"~\s*\(?\s*$", bare[:m.start()]):
             continue  # flags & ~DETACHED_PROCESS removes it
-        if hidden_console and m.group(0).endswith("CREATE_NEW_CONSOLE"):
-            continue
         if NAMED_USE.search(bare):
             return True
     for expr in flag_values(bare):
@@ -243,7 +242,7 @@ def bad_statement(code, hiding):
                 continue
             if value >= 0x100000000:
                 continue
-            if value & 0x8 or value & 0x10 and not hidden_console:
+            if value & 0x8:
                 return True
     return bool(NODE_DETACHED.search(bare))
 
@@ -253,13 +252,12 @@ def first_bad(text, spans=None, style="hash", python=False):
     whole text is tokenized and comment-stripped FIRST, then cut to a window around the spans (same offsets)."""
     code = python_strings(text) if python else text
     code = strip_comments(code, style)
-    hiding = bool(HIDING.search(code))
     if spans:
         code = window(code, spans)
     for s, e, stmt in statements(code):
         if spans and not any(s < b + 1 and e > a for a, b in spans):
             continue
-        if bad_statement(stmt, hiding):
+        if bad_statement(stmt):
             return " ".join(stmt.split())
     return None
 
@@ -439,7 +437,7 @@ def main():
         return 0
     if not hit:
         return 0
-    reason = ("no-detached-launch: this launches a process DETACHED or into a NEW console ({!r}). A detached process "
+    reason = ("no-detached-launch: this launches a process DETACHED ({!r}). A detached process "
               "has no console, so every console program it starts gets a visible window on the user's desktop "
               "(2026-11-24: a pop-up every second for a whole headless run; banned by CLAUDE.md 'No visible helper "
               "consoles'). Use creationflags=CREATE_NO_WINDOW (0x08000000), optionally | CREATE_NEW_PROCESS_GROUP "

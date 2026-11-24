@@ -1,7 +1,9 @@
 # no-detached-launch (PreToolUse guard, new 2026-11-24)
 
-Refuses an agent tool call that would launch a process with Windows `DETACHED_PROCESS` (`0x00000008`), or into a
-new VISIBLE console (`CREATE_NEW_CONSOLE`, `0x10`, without a `startupinfo`).
+Refuses an agent tool call that would launch a process with Windows `DETACHED_PROCESS` (`0x00000008`): the pattern
+that produces console pop-up SPAM. Deliberately visible terminal work (`CREATE_NEW_CONSOLE`, `Start-Process`, a
+terminal the user opens) is not refused (user, 2026-11-24: "im not trying to prohibit visible terminal work
+altogether. just whatever you do that specifically causes that spam").
 
 ## Why
 
@@ -36,9 +38,8 @@ launcher from reintroducing the detached form.
 - Per logical statement (bracketed, `|`- and `\`-continued lines joined, at most 50 lines; comments, block comments,
   docstrings and string contents blanked to the same length, Python via its own tokenizer on the whole file before
   the edit window is cut; `#` comments for Python/shell/PowerShell, `//` and quote-aware `/* */` for C-family/JS):
-  `DETACHED_PROCESS` / `CREATE_NEW_CONSOLE` (the latter unless hidden) used as a flag (`creationflags`, `Popen`, `CreateProcess`, `spawn`, `|`,
-  `|=`, assignment) and not negated with `~`; a `creationflags` value holding an integer literal with bit 0x8, or
-  0x10 without a hiding `startupinfo` (`SW_HIDE` in the same text); Node `detached: true` (libuv sets `DETACHED_PROCESS` on Windows).
+  `DETACHED_PROCESS` used as a flag (`creationflags`, `Popen`, `CreateProcess`, `spawn`, `|`, `|=`, assignment) and
+  not negated with `~`; a `creationflags` value holding an integer literal with bit 0x8; Node `detached: true` (libuv sets `DETACHED_PROCESS` on Windows).
 - Unreadable input fails open. The refusal is a JSON deny. Every parsed payload writes a heartbeat
   (`.claude/backups/.hook-heartbeat/no-detached-launch`) for `tools/hook-canary.sh`, so a hook that stops firing is
   visible.
@@ -50,8 +51,8 @@ string literals (string contents are blanked to avoid prose false positives); he
 
 ## Evidence of price (local, transcripts not in this repo)
 
-`replay_history.py` over every recorded Claude Code tool call on the install machine (171,986 calls): 6 refused,
-all genuine detached launches (the incident, its edit, an earlier BELOW_NORMAL | GROUP | 0x8 launcher, and two named
+`replay_history.py` over every recorded Claude Code tool call on the install machine (172,128 calls): 7 refused,
+all genuine (the 7th is the 2026-11-24 deploy probe) detached launches (the incident, its edit, an earlier BELOW_NORMAL | GROUP | 0x8 launcher, and two named
 `DETACHED_PROCESS` flag builds). No false positive remains. Four rounds of independent review (91f784c, 9922f7d, 86d482f, 2f2d16c) found: a minimal Edit adding the flag unseen, the
 docstring offset shift breaking that fix, multi-line / `|=` / dict-key / Node spellings, code written through quoted
 shell text or PowerShell here-strings, nested `bash -c` / `cmd /c`, `replace_all`, CRLF files, MultiEdit order, and
@@ -66,9 +67,9 @@ counted as kills; the gate now requires a green baseline and runs pytest inside 
 
 ## Files
 
-- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 123 cases through the hook as a process
+- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 124 cases through the hook as a process
   (`HOOK_PYTHON="py -3.12"` runs the hook under another interpreter than pytest).
-- `mutate.py`: 71 mutants, one per clause (the f-string one only where the hook Python has f-string tokens, 3.12+);
+- `mutate.py`: 66 mutants, one per clause (the f-string one only where the hook Python has f-string tokens, 3.12+);
   the unmodified hook must pass first, and a kill must be a failing test. CI runs Python 3.10, 3.12 and 3.13 on
   Ubuntu and Windows, because the registration's `py -3` picks the newest installed 3.x (3.12 on the install).
 - `claude-pretooluse-hook.json`, `codex-pretooluse-hook.json`: the registration entries added on deploy (`py -3`,
