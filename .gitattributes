@@ -3,3 +3,4 @@ gateway_guard/** -text
 protect_bash/** -text
 save_sentinel/** -text
 requirements.lock -text
+no_detached_launch/** -text

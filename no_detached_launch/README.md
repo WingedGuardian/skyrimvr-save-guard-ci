@@ -1,6 +1,7 @@
 # no-detached-launch (PreToolUse guard, new 2026-11-24)
 
-Refuses an agent tool call that would launch a process with Windows `DETACHED_PROCESS` (`0x00000008`).
+Refuses an agent tool call that would launch a process with Windows `DETACHED_PROCESS` (`0x00000008`), or into a
+new VISIBLE console (`CREATE_NEW_CONSOLE`, `0x10`, without a `startupinfo`).
 
 ## Why
 
@@ -22,23 +23,38 @@ launcher from reintroducing the detached form.
 
 ## Rule
 
-Checked: shell commands (`Bash`, `PowerShell`, `Monitor`) and text written to CODE files (`Write` content,
-`Edit`/`MultiEdit` new_string, `NotebookEdit` new_source; extensions in `CODE_FILES`). Refused when, outside a
-comment, a line uses `DETACHED_PROCESS` as a launch flag (with `creationflags`, `Popen`, `CreateProcess`, or OR-ed
-with `|`), or a `creationflags` expression holds an integer literal with the 0x8 bit set. Notes and docs (`.md`,
-`.txt`, `.json`, ...) may describe the flag; the packet's own files under `no_detached_launch/` stay editable.
-Unreadable input fails open. The refusal is a JSON deny (Claude Code and Codex both honour it).
+- **Code files** (`CODE_FILES`) written with `Write`, `Edit`, `MultiEdit`, `NotebookEdit`. An Edit is judged on the
+  file AFTER the edit, statement by statement around the changed text, so appending `| 0x8` to an existing
+  `creationflags` line is seen; an unreadable file falls back to the new text. Notes and docs (`.md`, `.txt`,
+  `.json`, ...) may describe the flag; the packet's own files under `no_detached_launch/` stay editable.
+- **Shell commands** (`Bash`, `PowerShell`, `Monitor`): only text that runs as code: `-c`/`-e`/`-Command` scripts
+  after an interpreter, heredoc bodies fed to an interpreter or written to a code file, and the unquoted command.
+  Commit messages and search patterns are quoted arguments and are not judged.
+- Per logical statement (bracketed and `|`-continued lines joined; comments, docstrings and quoted prose dropped):
+  `DETACHED_PROCESS` / `CREATE_NEW_CONSOLE` used as a flag (`creationflags`, `Popen`, `CreateProcess`, `spawn`, `|`,
+  `|=`, assignment) and not negated with `~`; a `creationflags` value holding an integer literal with bit 0x8, or
+  0x10 without `startupinfo`; Node `detached: true` (libuv sets `DETACHED_PROCESS` on Windows).
+- Unreadable input fails open. The refusal is a JSON deny. Every parsed payload writes a heartbeat
+  (`.claude/backups/.hook-heartbeat/no-detached-launch`) for `tools/hook-canary.sh`, so a hook that stops firing is
+  visible.
+
+Out of scope (documented, not caught): a flag constant renamed through data flow; helpers started via `pythonw` or a
+`.pyw` (also console-less); PowerShell `Start-Process` without `-WindowStyle Hidden`. Codex is registered for its
+`Bash` tool only; edits Codex makes through `apply_patch` are not checked.
 
 ## Evidence of price (local, transcripts not in this repo)
 
-`replay_history.py` over every recorded Claude Code tool call on the install machine (161,294 calls): 9 refused.
-7 are genuine detached launches (including the incident), 2 are false positives: a `grep` whose pattern lists
-`creationflags\|DETACHED_PROCESS`, and a shell edit of this hook's own source. An earlier, broader draft refused 22
-(prose and docstrings); `CODE_FILES` and the use-context rule removed those.
+`replay_history.py` over every recorded Claude Code tool call on the install machine (171,788 calls): 7 refused,
+all genuine: 5 detached launches (including the incident and its edit), 2 named `DETACHED_PROCESS` flag builds.
+No false positive remains. An independent review of the first draft found that a minimal Edit could add the flag
+unseen, that multi-line and `|=` spellings were missed, and that commit messages and searches would be refused; all
+are now cases in the tests.
 
 ## Files
 
-- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 28 cases through the hook as a process.
-- `mutate.py`: 18 mutants, one per clause; CI fails unless every one is killed.
-- `claude-pretooluse-hook.json`, `codex-pretooluse-hook.json`: the registration entries added on deploy.
-- `MANIFEST.sha256` + `verify_manifest.py`: packet bytes pinned.
+- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 73 cases through the hook as a process.
+- `mutate.py`: 45 mutants, one per clause; the unmodified hook must pass first, and a kill must be a failing test.
+- `claude-pretooluse-hook.json`, `codex-pretooluse-hook.json`: the registration entries added on deploy (`py -3`,
+  standard library only).
+- `replay_history.py`: the price check above. `MANIFEST.sha256` + `verify_manifest.py`: every packet file pinned;
+  an unlisted file fails the check.

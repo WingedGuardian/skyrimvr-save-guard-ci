@@ -22,14 +22,14 @@ for d in sys.argv[1:]:
                     continue
                 seen.add(c.get("id"))
                 tool, inp = c.get("name"), c.get("input") or {}
-                found = [t for t in h.texts(tool, inp) if isinstance(t, str)]
-                if not found:
+                if tool not in ("Bash", "PowerShell", "Monitor", "Write", "Edit", "MultiEdit", "NotebookEdit"):
                     continue
                 total += 1
-                for t in found:
-                    hit = h.detached(t)
-                    if hit:
-                        hits += 1
-                        print("HIT", tool, f.name[:8], hit[:150])
-                        break
+                try:
+                    hit = h.judge(tool, inp)
+                except Exception as e:
+                    hit = "CRASH %r" % e
+                if hit:
+                    hits += 1
+                    print("HIT", tool, f.name[:8], hit[:150])
 print("calls", total, "refused", hits)
