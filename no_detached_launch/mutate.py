@@ -28,8 +28,14 @@ M = [
     ("batch-rem", r'blank(l) if re.match(r"\s*(?i:rem\s|::)", l) else l', "l"),
     ("comment-style-slash", '    if low_path.endswith(SLASH_FILES):\n        return "slash"', '    if False:\n        return "slash"'),
     ("inline-script", "    for m in INLINE.finditer(plain):", "    for m in []:"),
-    ("inline-bound-to-interp", r'(?:\s+(?:-{1,2}[\w.-]+|/[a-z]))*?\s+"', r'.*?\s+"'),
-    ("nested-shells", "        if depth < 3:", "        if False:"),
+    ("inline-bound-to-interp", r"""|/[a-z]))*?\s+"
+                    r"(?:-\w*c""", r"""|/[a-z]))*?.*?\s+"
+                    r"(?:-\w*c"""),
+    ("quoted-newline-not-a-cut", '    bare = QUOTED_ML.sub(lambda m: "x" * len(m.group(0)), command)',
+     '    bare = QUOTED_ML.sub(lambda m: blank(m.group(0)), command)'),
+    ("option-values", r"""(?:\s+(?![-/\"'])[^\s\"';|&]+)?""", ""),
+    ("combined-c-flags", r"(?:-\w*c|-e|", r"(?:-c|-e|"),
+    ("nested-shells","        if depth < 3:", "        if False:"),
     ("quoted-written-to-code", "    for seg in segments(plain):", "    for seg in []:"),
     ("writes-per-segment", "    for seg in segments(plain):", "    for seg in [plain]:"),
     ("shell-files", "    shell_file = low.endswith(SHELL_FILES)", "    shell_file = False"),

@@ -53,8 +53,10 @@ WRITES_CODE = re.compile(r"(?i)(?:>>?\s*" + CODE_PATH + r"|\b(?:Set-Content|Add-
 HEREDOC = re.compile(r"(?<!<)<<(?!<)-?[ \t]*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 HERESTRING = re.compile(r"@(['\"])\r?\n(.*?)\r?\n\1@", re.S)
 # interpreter, then only its own options (-B, -3, -NoProfile, /d /s), then the script flag and a quoted script
-INLINE = re.compile(r"(?i)(?<![\w.$-])" + INTERP_NAMES + r"(?:\s+(?:-{1,2}[\w.-]+|/[a-z]))*?\s+"
-                    r"(?:-c|-e|--eval|-Command|/c|/k)\s+(\"(?:[^\"\\]|\\.)*\"|'[^']*')")
+#   an option may take one value (-X utf8, -ExecutionPolicy Bypass); combined flags ending in c count (bash -lc)
+INLINE = re.compile(r"(?i)(?<![\w.$-])" + INTERP_NAMES +
+                    r"(?:\s+(?:-{1,2}[\w.-]+(?:\s+(?![-/\"'])[^\s\"';|&]+)?|/[a-z]))*?\s+"
+                    r"(?:-\w*c|-e|--eval|-Command|/c|/k)\s+(\"(?:[^\"\\]|\\.)*\"|'[^']*')")
 WINDOW = 200          # lines judged on each side of an edit
 MAX_FILE = 4_000_000  # bytes; a bigger file is judged on the new text only
 MAX_JOIN = 50         # physical lines one statement may span
@@ -300,7 +302,7 @@ def shell_payloads(command, depth=0):
 
 def segments(command):
     """COMMAND split on `;` `&&` `||` and line ends outside quotes (pipes stay together: `"..." | Set-Content x.py`)."""
-    bare = QUOTED_ML.sub(lambda m: blank(m.group(0)).replace(" ", "x"), command)
+    bare = QUOTED_ML.sub(lambda m: "x" * len(m.group(0)), command)  # a line break INSIDE quotes is not a cut
     cuts = [0] + [m.end() for m in re.finditer(r";|&&|\|\||\n", bare)] + [len(command)]
     return [command[a:b] for a, b in zip(cuts, cuts[1:])]
 

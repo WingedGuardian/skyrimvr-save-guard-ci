@@ -52,20 +52,23 @@ string literals (string contents are blanked to avoid prose false positives); he
 
 `replay_history.py` over every recorded Claude Code tool call on the install machine (171,986 calls): 6 refused,
 all genuine detached launches (the incident, its edit, an earlier BELOW_NORMAL | GROUP | 0x8 launcher, and two named
-`DETACHED_PROCESS` flag builds). No false positive remains. Three rounds of independent review (91f784c, 9922f7d, 86d482f) found: a minimal Edit adding the flag unseen, the
+`DETACHED_PROCESS` flag builds). No false positive remains. Four rounds of independent review (91f784c, 9922f7d, 86d482f, 2f2d16c) found: a minimal Edit adding the flag unseen, the
 docstring offset shift breaking that fix, multi-line / `|=` / dict-key / Node spellings, code written through quoted
 shell text or PowerShell here-strings, nested `bash -c` / `cmd /c`, `replace_all`, CRLF files, MultiEdit order, and
 false positives on commit messages, searches, docstrings and strings; then (round 3) tokenizing after the edit
 window is cut, `-c`/`-e` of a later command taken as a script, 3.12 f-string tokens, whole-command write scope,
-quote-blind `/* */`, and MultiEdit span shifts after a multi-site `replace_all`. All are now cases in the tests.
+quote-blind `/* */`, and MultiEdit span shifts after a multi-site `replace_all`; (round 4) quoted code with a
+line break written to a file, and interpreter options with a value (`-X utf8`, `-ExecutionPolicy Bypass`) or
+combined flags (`bash -lc`). Known, not fixed (LOW): an Edit to a shell script judges its whole 400-line window,
+so a script that already holds a bad launch can refuse an unrelated edit nearby. All are now cases in the tests.
 CI on the Windows runner also showed `pytest <tempdir>` collecting nothing, which the earlier mutant gate had
 counted as kills; the gate now requires a green baseline and runs pytest inside the temp folder.
 
 ## Files
 
-- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 118 cases through the hook as a process
+- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 123 cases through the hook as a process
   (`HOOK_PYTHON="py -3.12"` runs the hook under another interpreter than pytest).
-- `mutate.py`: 68 mutants, one per clause (the f-string one only where the hook Python has f-string tokens, 3.12+);
+- `mutate.py`: 71 mutants, one per clause (the f-string one only where the hook Python has f-string tokens, 3.12+);
   the unmodified hook must pass first, and a kill must be a failing test. CI runs Python 3.10, 3.12 and 3.13 on
   Ubuntu and Windows, because the registration's `py -3` picks the newest installed 3.x (3.12 on the install).
 - `claude-pretooluse-hook.json`, `codex-pretooluse-hook.json`: the registration entries added on deploy (`py -3`,
