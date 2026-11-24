@@ -55,7 +55,7 @@ background helpers such as the save-vault watcher run that way). Codex is regist
 `replay_history.py` over every recorded Claude Code tool call on the install machine (172,711 calls): 8 refused;
 7 genuine (incl. two deliberate deploy probes); the 8th is a replay artifact (an Edit judged without its file,
 which has since changed; judged against the reconstructed pre-edit file it is allowed) detached launches (the incident, its edit, an earlier BELOW_NORMAL | GROUP | 0x8 launcher, and two named
-`DETACHED_PROCESS` flag builds). No false positive remains. Five rounds of independent review (91f784c, 9922f7d, 86d482f, 2f2d16c, and the X4 port's review of 78b9587) found: a minimal Edit adding the flag unseen, the
+`DETACHED_PROCESS` flag builds). No false positive remains. Six rounds of independent review (91f784c, 9922f7d, 86d482f, 2f2d16c, the X4 port's review of 78b9587, a256f41) found: a minimal Edit adding the flag unseen, the
 docstring offset shift breaking that fix, multi-line / `|=` / dict-key / Node spellings, code written through quoted
 shell text or PowerShell here-strings, nested `bash -c` / `cmd /c`, `replace_all`, CRLF files, MultiEdit order, and
 false positives on commit messages, searches, docstrings and strings; then (round 3) tokenizing after the edit
@@ -67,15 +67,19 @@ so a script that already holds a bad launch can refuse an unrelated edit nearby.
 variable interpreter (`"C:/.../python.exe" -c`, `"$PY" -c`, `& $py -c`) and code on stdin (`echo ... | python -`,
 `<<<`, `node -p`) were not judged; false positives on a mask test (`flags & X`), the constant's definition, a data
 tuple, `creationflags=table[8]` / `pick(level=8)`, an unquoted `rg creationflags=8`, and prose in triple-quoted
-strings of code piped into Python. All are now cases in the tests.
+strings of code piped into Python. (round 6) only subscripts and keyword-argument values are blanked inside a
+flag value, so the portable getattr fallback (`getattr(subprocess, NAME, 0x8)`) and `else (A | 0x8)` stay caught; a
+variable counts as an interpreter only as the command word (`cat > "$NOTES" <<EOF` is prose, `"$PY" - <<EOF` is
+code); Go's `CreationFlags:`. The deployed ac71e24 refused a commit command whose `-c user.email="$(git -C "...")"`
+nested quoting shifted the quote pairing; that exact command is now an allow case. All are now cases in the tests.
 CI on the Windows runner also showed `pytest <tempdir>` collecting nothing, which the earlier mutant gate had
 counted as kills; the gate now requires a green baseline and runs pytest inside the temp folder.
 
 ## Files
 
-- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 146 cases through the hook as a process
+- `no-detached-launch.py`: the hook. `test_no_detached_launch.py`: 155 cases through the hook as a process
   (`HOOK_PYTHON="py -3.12"` runs the hook under another interpreter than pytest).
-- `mutate.py`: 81 mutants, one per clause (the f-string one only where the hook Python has f-string tokens, 3.12+);
+- `mutate.py`: 85 mutants, one per clause (the f-string one only where the hook Python has f-string tokens, 3.12+);
   the unmodified hook must pass first, and a kill must be a failing test. CI runs Python 3.10, 3.12 and 3.13 on
   Ubuntu and Windows, because the registration's `py -3` picks the newest installed 3.x (3.12 on the install).
 - `claude-pretooluse-hook.json`, `codex-pretooluse-hook.json`: the registration entries added on deploy (`py -3`,

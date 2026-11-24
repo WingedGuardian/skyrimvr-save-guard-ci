@@ -90,7 +90,13 @@ DENY = {
     "python-x-utf8": ("Bash", {"command": 'python -X utf8 -c "Popen(c, creationflags=8)"'}),
     "bash-lc": ("Bash", {"command": "bash -lc \"python -c 'import subprocess as s; s.Popen([1], creationflags=s.DETACHED_PROCESS)'\""}),
     # X4 port review (2026-11-24): quoted / variable interpreters and code on stdin
-    "or-in-parens": W("flags = (DETACHED_PROCESS | GROUP)\n"),
+    # review of a256f41: positional fallback, keyword before a group, Go
+    "var-python-heredoc": ("Bash", {"command": "\"$PY\" - <<'EOF'\nimport subprocess\nsubprocess.Popen(['x'], creationflags=8)\nEOF"}),
+    "getattr-fallback":W('Popen(c, creationflags=getattr(subprocess, "DETACHED_PROCESS", 0x00000008))\n'),
+    "getattr-fallback-or": W('Popen(c, creationflags=NO_WINDOW | getattr(subprocess, "DETACHED_PROCESS", 8))\n'),
+    "keyword-else-group": W("Popen(c, creationflags=NO_WINDOW if quiet else (0x200 | 0x8))\n"),
+    "go-sysprocattr": W("cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.DETACHED_PROCESS}\n", "x.go"),
+    "or-in-parens":W("flags = (DETACHED_PROCESS | GROUP)\n"),
     "quoted-path-interp":("Bash", {"command": '"C:/Program Files/Python313/python.exe" -c "Popen(c, creationflags=8)"'}),
     "dq-var-interp": ("Bash", {"command": '"$PY" -c "Popen(c, creationflags=8)"'}),
     "bare-var-interp": ("Bash", {"command": '$PY -c "Popen(c, creationflags=8)"'}),
@@ -128,7 +134,16 @@ ALLOW = {
     "js-string-holds-use": W('const msg = "flags = DETACHED_PROCESS was the bug";\n', "x.js"),
     "python-heredoc-prose":("Bash", {"command": "python - <<'EOF'\nrep('''Scope: never creationflags=NO_WINDOW | 0x8,\nflags = DETACHED_PROCESS is the bug''')\nEOF"}),
     "echo-pipe-python-prose": ("Bash", {"command": "echo \"print('''flags = DETACHED_PROCESS''')\" | python -"}),
-    "git-var-c":("Bash", {"command": '$GIT -c "user.name=x" commit -m "y"'}),
+    # real false positive of the deployed ac71e24 hook (2026-11-24): nested "$(git -C "..." ...)" quoting before a
+    # commit message that quotes the flag's spelling with \" escapes and mentions <<EOF
+    "commit-msg-nested-quotes": ("Bash", {"command": r'''cd .. && git add -A x && git -c user.email="$(git -C "/c/G G/S" config user.email)" commit -q -m "fix
+
+A1 getattr(subprocess, \"DETACHED_PROCESS\", 0x8) fallback was blanked; A2 else (A | 0x8) follows; A3 any \$VAR
+as the command word; \"\$PY\" - <<EOF still counts, cat > \"\$NOTES\" <<EOF does not)." && git push -q'''}),
+    "heredoc-to-var-notes":("Bash", {"command": "cat > \"$NOTES\" <<'EOF'\ndrop creationflags=NO_WINDOW | DETACHED_PROCESS\nEOF"}),
+    "ps-herestring-to-var": ("PowerShell", {"command": "@'\ndrop creationflags=NO_WINDOW | DETACHED_PROCESS\n'@ | Set-Content $notesPath"}),
+    "rg-var-pattern": ("Bash", {"command": 'rg "$PAT" -e "creationflags=8" tools'}),
+    "git-var-c": ("Bash",{"command": '$GIT -c "user.name=x" commit -m "y"'}),
     # X4 port review (2026-11-24): false positives that are not launches
     "assert-flag-absent": W("assert not (kw['creationflags'] & subprocess.DETACHED_PROCESS)\n"),
     "constants-table": W("DETACHED_PROCESS = 0x00000008\nCREATE_NO_WINDOW = 0x08000000\n"),

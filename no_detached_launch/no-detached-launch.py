@@ -43,7 +43,7 @@ import tokenize
 
 NAMES = r"(?:DETACHED_PROCESS)"
 NAMED = re.compile(r"(?<![\w.])(?:[A-Za-z_]\w*\.)*" + NAMES + r"\b")
-LAUNCH_CONTEXT = re.compile(r"creation_?flags|Popen|CreateProcess|spawn")
+LAUNCH_CONTEXT = re.compile(r"creation_?flags|Popen|CreateProcess|spawn", re.I)  # Go: CreationFlags:
 FLAGS = re.compile(r"creation_?flags[\"'\]]*\s*(?:[=:(]|\|=)\s*", re.I)
 QUOTED = re.compile(r"\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'")
 QUOTED_ML = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'")  # shell quoting: may span lines; '...' has no escapes
@@ -54,14 +54,16 @@ CODE_FILES = (".py", ".pyw", ".pyi", ".ps1", ".psm1", ".psd1", ".js", ".mjs", ".
               ".rs", ".go", ".java", ".ipynb")
 SELF = ("no-detached-launch.py", "test_no_detached_launch.py", "mutate.py", "replay_history.py")
 INTERP_NAMES = r"(?:python[\d.]*w?|py|pythonw|node|deno|bun|pwsh|powershell|bash|sh|cmd)(?:\.exe)?"
-# an interpreter word: bare (python), a quoted path ("C:/Program Files/Python313/python.exe"), or a variable
-# ($PY, ${PY}, "$X4_PY", PowerShell & $py)
-INTERP_TOKEN = (r"(?:(?<![\w.$-])" + INTERP_NAMES + r"(?![\w-])"
-                r"|[\"'](?:[^\"'\n]*[\\/])?" + INTERP_NAMES + r"[\"']"
-                r"|\"?\$\{?[A-Za-z_]\w*\}?\"?)")
-INTERP = re.compile(r"(?i)" + INTERP_TOKEN)
-PIPE_TO_INTERP = re.compile(r"(?i)\|\s*&?\s*" + INTERP_TOKEN + r"(?:\s+-{1,2}[\w.-]+)*(?:\s+-)?\s*$")
-HERE3 = re.compile(r"(?i)" + INTERP_TOKEN + r"[^|;&\n]*?<<<\s*(\"(?:[^\"\\]|\\.)*\"|'[^']*')")
+# an interpreter word: bare (python) or a quoted path ("C:/Program Files/Python313/python.exe"); a variable ($PY,
+# ${PY}, "$X4_PY", PowerShell & $py) counts only as the COMMAND word, never elsewhere (cat > "$NOTES" <<EOF is prose)
+INTERP_BASE = (r"(?:(?<![\w.$-])" + INTERP_NAMES + r"(?![\w-])"
+               r"|[\"'](?:[^\"'\n]*[\\/])?" + INTERP_NAMES + r"[\"'])")
+VAR = r"\"?\$\{?[A-Za-z_]\w*\}?\"?"
+CMD_POS = r"(?:^|[\n|;(&]|\b(?:do|then|else|exec)\b)\s*"
+INTERP_TOKEN = r"(?:" + INTERP_BASE + r"|" + CMD_POS + VAR + r")"
+INTERP = re.compile(r"(?im)" + INTERP_TOKEN)  # heredoc headers, here-string tails ("$PY" - <<EOF counts)
+PIPE_TO_INTERP = re.compile(r"(?i)\|\s*&?\s*(?:" + INTERP_BASE + r"|" + VAR + r")(?:\s+-{1,2}[\w.-]+)*(?:\s+-)?\s*$")
+HERE3 = re.compile(r"(?im)" + INTERP_TOKEN + r"[^|;&\n]*?<<<\s*(\"(?:[^\"\\]|\\.)*\"|'[^']*')")
 CODE_PATH = r"[\"']?[^\s\"'|;&<>]+(?:" + "|".join(re.escape(e) for e in CODE_FILES) + r")\b"
 WRITES_CODE = re.compile(r"(?i)(?:>>?\s*" + CODE_PATH + r"|\b(?:Set-Content|Add-Content|Out-File|tee)\b[^|;\n]*?" +
                          CODE_PATH + ")")
@@ -69,7 +71,7 @@ HEREDOC = re.compile(r"(?<!<)<<(?!<)-?[ \t]*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 HERESTRING = re.compile(r"@(['\"])\r?\n(.*?)\r?\n\1@", re.S)
 # interpreter, then only its own options (-B, -3, -NoProfile, /d /s), then the script flag and a quoted script
 #   an option may take one value (-X utf8, -ExecutionPolicy Bypass); combined flags ending in c count (bash -lc)
-INLINE = re.compile(r"(?i)" + INTERP_TOKEN +
+INLINE = re.compile(r"(?im)" + INTERP_TOKEN +
                     r"(?:\s+(?:-{1,2}[\w.-]+(?:\s+(?![-/\"'])[^\s\"';|&]+)?|/[a-z]))*?\s+"
                     r"(?:-\w*c|-e|-p|--eval|--print|-Command|/c|/k)\s+(\"(?:[^\"\\]|\\.)*\"|'[^']*')")
 WINDOW = 200          # lines judged on each side of an edit
@@ -238,17 +240,25 @@ def flag_values(bare):
 
 
 def outer_only(expr):
-    """EXPR with the inside of subscripts and call arguments blanked: in creationflags=table[8] or pick(level=8) the
-    8 is an index or argument, not a flag. Grouping parentheses, creationflags=(A | 0x8), are kept."""
-    out, frames = list(expr), []
-    for i, ch in enumerate(expr):
+    """EXPR with subscripts and keyword-argument values blanked: in creationflags=table[8] or pick(level=8) the 8 is an
+    index or an option, not a flag. Positional call arguments stay judged (getattr(subprocess, "DETACHED_PROCESS",
+    0x8) is the usual portable spelling), and so do grouping parentheses, including after a keyword (else (A | 0x8))."""
+    out, frames = list(expr), []  # frame: [kind, in_keyword_value]; kind "index" | "call" (any parenthesis: a
+    for i, ch in enumerate(expr):  # grouping one holds no name=value, so treating it as a call changes nothing)
         if ch in "([{":
-            prev = expr[:i].rstrip()[-1:]
-            frames.append(ch == "[" or ch == "(" and prev != "" and (prev.isalnum() or prev in "_)]"))
-        elif ch in ")]}":
+            frames.append(["index" if ch == "[" else "call", False])
+            continue
+        if ch in ")]}":
             if frames:
                 frames.pop()
-        elif any(frames):
+            continue
+        if frames and frames[-1][0] == "call":
+            if ch == ",":
+                frames[-1][1] = False
+            elif ch == "=" and re.search(r"(?<![=!<>])[A-Za-z_]\w*\s*$", expr[:i]) and expr[i + 1:i + 2] != "=":
+                frames[-1][1] = True
+                continue
+        if any(f[0] == "index" or f[0] == "call" and f[1] for f in frames):
             out[i] = " "
     return "".join(out)
 
