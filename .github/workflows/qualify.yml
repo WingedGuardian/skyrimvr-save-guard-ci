@@ -67,3 +67,28 @@ jobs:
           python -c "import hashlib,sys,pathlib; bad=[l for l in open('MANIFEST.sha256').read().splitlines() if hashlib.sha256(pathlib.Path(l.split('  ',1)[1]).read_bytes()).hexdigest()!=l.split('  ',1)[0]]; print('manifest', 'DIFF' if bad else 'ok', bad); sys.exit(1 if bad else 0)"
           python -B -m unittest -v test_save_sentinel
           python -B sentinel_mutants.py save-sentinel.py test_save_sentinel.py
+
+  no-detached-launch:
+    name: no-detached-launch guard (${{ matrix.os }}, Python 3.10)
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.10"
+      - name: Install locked dependencies
+        run: python -m pip install --only-binary=:all: --require-hashes -r no_detached_launch/requirements.lock
+      - name: Packet bytes match the manifest
+        run: python no_detached_launch/verify_manifest.py
+      - name: Hook tests
+        run: python -m pytest -q -p no:cacheprovider no_detached_launch/test_no_detached_launch.py
+      - name: Mutants (one per clause, each must be killed)
+        run: python -B no_detached_launch/mutate.py
