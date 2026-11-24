@@ -9,8 +9,15 @@ BS = "\\"
 M = [
     # names
     ("named-check", "    for m in NAMED.finditer(bare):", "    for m in []:"),
-    ("named-needs-use", "        if NAMED_USE.search(bare):", "        if True:"),
-    ("named-tilde-skip", "            continue  # flags & ~DETACHED_PROCESS removes it", "            pass"),
+    ("named-needs-use", "        if named_use(bare, m):", "        if True:"),
+    ("named-mask-skip", "        return False  # flags & ~DETACHED_PROCESS removes it", "        pass"),
+    ("named-definition-skip", "        return False  # the constant's own definition", "        pass  # the constant's own definition"),
+    ("use-or-before", r'(?<!\\)\|\s*\(?\s*$|', ""),
+    ("use-assign-rhs", r'|(?<![=!<>])=\s*$", before)', '", before)'),
+    ("use-or-after", r"""re.match(r"\s*\)?\s*\|(?![|=])", after) or""", ""),
+    ("use-launch-context", "                LAUNCH_CONTEXT.search(bare))", "                False)"),
+    ("outer-only", "        for neg, lit in LITERAL.findall(outer_only(expr)):", "        for neg, lit in LITERAL.findall(expr):"),
+    ("outer-only-grouping", 'ch == "(" and prev != "" and (prev.isalnum() or prev in "_)]")', 'ch == "("'),
     # strings / comments / docstrings
     ("strings-are-prose", "    bare = blank_strings(code)", "    bare = code"),
     ("key-kept", "        return s if KEY.fullmatch(s[1:-1]) else s[0] + blank(s[1:-1]) + s[-1]",
@@ -25,7 +32,16 @@ M = [
     ("hash-only-hash-langs", 'ch == "#" and style == "hash"', 'ch == "#"'),
     ("batch-rem", r'blank(l) if re.match(r"\s*(?i:rem\s|::)", l) else l', "l"),
     ("comment-style-slash", '    if low_path.endswith(SLASH_FILES):\n        return "slash"', '    if False:\n        return "slash"'),
-    ("inline-script", "    for m in INLINE.finditer(plain):", "    for m in []:"),
+    ("inline-script", "    for m in list(INLINE.finditer(plain)) + list(HERE3.finditer(plain)):",
+     "    for m in list(HERE3.finditer(plain)):"),
+    ("here3", "    for m in list(INLINE.finditer(plain)) + list(HERE3.finditer(plain)):",
+     "    for m in list(INLINE.finditer(plain)):"),
+    ("interp-quoted-path", r'''|[\"'](?:[^\"'\n]*[\\/])?" + INTERP_NAMES + r"[\"']"''', '"'),
+    ("interp-variable", r'''|\"?\$\{?[A-Za-z_]\w*\}?\"?)")''', ')")'),
+    ("node-print-flag", "|-p|--eval|--print|", "|--eval|"),
+    ("pipe-to-interp", '        piped = PIPE_TO_INTERP.search(seg.rstrip(" \\t;&"))', "        piped = None"),
+    ("python-payloads", "    return PY + body if IS_PYTHON.search(context) else body", "    return body"),
+    ("plain-no-literals", "        hit = first_bad(text, python=python, literals=not plain)", "        hit = first_bad(text, python=python)"),
     ("inline-bound-to-interp", r"""|/[a-z]))*?\s+"
                     r"(?:-\w*c""", r"""|/[a-z]))*?.*?\s+"
                     r"(?:-\w*c"""),
@@ -47,7 +63,7 @@ M = [
     ("join-leading-or", 'or nxt.startswith("|") and not nxt.startswith("||")', "or False"),
     ("max-join", "        if joins and idx + 1 < len(lines) and n < MAX_JOIN:", "        if joins and idx + 1 < len(lines):"),
     # flag values
-    ("flags-expression", "    for expr in flag_values(bare):", "    for expr in []:"),
+    ("flags-expression", "    for expr in (flag_values(bare) if literals else []):", "    for expr in []:"),
     ("flags-dict-key", 'flags[' + BS + '"\'' + BS + ']]*' + BS + 's*(?:', 'flags' + BS + 's*(?:'),
     ("flag-value-stops-at-comma", '            elif ch in ",;" and depth == 0:', "            elif False:"),
     ("flag-value-stops-at-line", '            elif ch == "' + BS + 'n" and depth == 0 and not (', "            elif False and not ("),
@@ -62,9 +78,10 @@ M = [
     ("heredoc-code-file", "        if INTERP.search(header) or WRITES_CODE.search(header):", "        if INTERP.search(header):"),
     ("heredoc-body-not-plain", "        pos = end.end() if end else len(command)", "        pos = nl + 1"),
     ("herestring-judged", "        if INTERP.search(tail) or WRITES_CODE.search(tail):", "        if False:"),
-    ("quotes-blanked", "    out.append(QUOTED_ML.sub(\"''\", plain))", "    out.append(plain)"),
-    ("quotes-span-lines", "    out.append(QUOTED_ML.sub(\"''\", plain))", "    out.append(QUOTED.sub(\"''\", plain))"),
-    ("list-command", '            command = " ".join(map(str, command))', "            command = None"),
+    ("quotes-blanked", "    out.append(PLAIN + QUOTED_ML.sub(\"''\", plain))", "    out.append(plain)"),
+    ("quotes-span-lines", "    out.append(PLAIN + QUOTED_ML.sub(\"''\", plain))", "    out.append(PLAIN + QUOTED.sub(\"''\", plain))"),
+    ("list-command", "            command = shlex.join(map(str, command))", "            command = None"),
+    ("list-command-quoted", "            command = shlex.join(map(str, command))", '            command = " ".join(map(str, command))'),
     # edits
     ("edit-in-context", "    done = after_edits(path, edits)", "    done = None"),
     ("span-limit", "        if spans and not any(s < b + 1 and e > a for a, b in spans):", "        if False:"),
