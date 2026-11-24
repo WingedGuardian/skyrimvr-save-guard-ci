@@ -44,7 +44,8 @@ launcher from reintroducing the detached form.
   (`.claude/backups/.hook-heartbeat/no-detached-launch`) for `tools/hook-canary.sh`, so a hook that stops firing is
   visible.
 
-Out of scope (documented, not caught): a flag constant renamed through data flow; code generated inside Python
+Out of scope (documented, not caught): a flag constant renamed through data flow, or passed through a helper's
+keyword argument (`creationflags=f(x, flags=0x8)`); code generated inside Python
 string literals (string contents are blanked to avoid prose false positives); helpers started via `pythonw` or a
 `.pyw` (also console-less, so their console children would pop the same way; not refused because legitimate
 background helpers such as the save-vault watcher run that way). Codex is registered for its
