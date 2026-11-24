@@ -46,7 +46,8 @@ launcher from reintroducing the detached form.
 
 Out of scope (documented, not caught): a flag constant renamed through data flow; code generated inside Python
 string literals (string contents are blanked to avoid prose false positives); helpers started via `pythonw` or a
-`.pyw` (also console-less); PowerShell `Start-Process` without `-WindowStyle Hidden`. Codex is registered for its
+`.pyw` (also console-less, so their console children would pop the same way; not refused because legitimate
+background helpers such as the save-vault watcher run that way). Codex is registered for its
 `Bash` tool only; edits Codex makes through `apply_patch` are not checked.
 
 ## Evidence of price (local, transcripts not in this repo)
