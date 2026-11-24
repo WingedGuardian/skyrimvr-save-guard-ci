@@ -8,13 +8,16 @@ from pathlib import Path
 import pytest
 
 HOOK = Path(__file__).parent / "no-detached-launch.py"
+# The hook runs under the deployed interpreter (`py -3`), which may be newer than the one running pytest:
+# HOOK_PYTHON="py -3.12" judges the hook on that tokenizer.
+PY = os.environ.get("HOOK_PYTHON", "").split() or [sys.executable]
 
 
 def run(tool, tool_input, env=None):
     payload = json.dumps({"tool_name": tool, "tool_input": tool_input}).encode()
     e = dict(os.environ, NO_DETACHED_LAUNCH_HEARTBEAT="0")
     e.update(env or {})
-    r = subprocess.run([sys.executable, "-B", str(HOOK)], input=payload, capture_output=True, timeout=30, env=e)
+    r = subprocess.run(PY + ["-B", str(HOOK)], input=payload, capture_output=True, timeout=30, env=e)
     assert r.returncode == 0, r.stderr
     return r
 
@@ -81,7 +84,11 @@ DENY = {
     "new-console-startupinfo-none": W("Popen(c, creationflags=CREATE_NEW_CONSOLE, startupinfo=None)\n"),
     "node-dot-detached": W("opts.detached = true;\nspawn(cmd, args, opts);\n", "x.js"),
     "node-json-detached": W('spawn(cmd, args, {"detached": true});\n', "x.js"),
-    "js-slashes-in-string": W('spawn(" //x", {detached: true});\n', "x.js"),
+    "c-define": W("#define FLAGS (NO_WINDOW | DETACHED_PROCESS)\n", "x.c"),
+    "js-glob-string":W('globby("src/**/*.js");\nspawn(cmd, args, {detached: true});\n/** doc */\n', "x.js"),
+    "sh-glob": W('cp build/* out/\nnode -e "spawn(c, {detached: true})"\nls */\n', "x.sh"),
+    "python-floor-div-then-flag": W("half = n // 2; p = Popen(c, creationflags=0x8)\n"),
+    "js-slashes-in-string":W('spawn(" //x", {detached: true});\n', "x.js"),
     "spawn-only-use":W("spawn(cmd, DETACHED_PROCESS)\n", "x.js"),
     "leading-or-join": W("var creationflags = NO_WINDOW\n    | 0x8;\n", "x.cs"),
     "backslash-join": W("x = dict(a=1)\ncreationflags = NO_WINDOW \\\n    + 0x8\n"),
@@ -96,7 +103,14 @@ ALLOW = {
     "string-holds-flags": W('raise SystemExit("never use creationflags=0x8")\n'),
     "inline-print-flags": ("Bash", {"command": "python -c \"print('was creationflags=8')\""}),
     "bracket-string-in-value": W('p = Popen(c, creationflags=pick("(", 0x200), timeout=8)\n'),
-    "js-block-comment": W("/* old: spawn(c, {detached: true}) */\nspawn(c, {windowsHide: true});\n", "x.js"),
+    "grep-c-after-python": ("Bash", {"command": 'python -m pytest -q; grep -c "DETACHED_PROCESS|creationflags=8" tools/x.py'}),
+    "sed-e-after-py": ("Bash", {"command": "py -3 a.py | sed -e 's/creationflags=0x8 | DETACHED_PROCESS//'"}),
+    "dollar-cmd": ("Bash", {"command": 'for f in x; do $cmd -c "creationflags=0x8"; done'}),
+    "fstring-prose": W('HELP = f"""\nUse NO_WINDOW | {GROUP}, never DETACHED_PROCESS | creationflags=0x8\n"""\n'),
+    "write-then-commit": ("Bash", {"command": 'git show HEAD~1:tools/v.py > old.py && git commit -m "drop creationflags=0x8"'}),
+    "write-then-search": ("Bash", {"command": 'git show HEAD~1:tools/v.py > old.py && rg "DETACHED_PROCESS|creationflags=8" old.py'}),
+    "python-floor-div": W("half = n // 2\nPopen(c, creationflags=NO_WINDOW)\n"),
+    "js-block-comment":W("/* old: spawn(c, {detached: true}) */\nspawn(c, {windowsHide: true});\n", "x.js"),
     "js-bracket-in-string": W('let o = "(";\nconsole.log(DETACHED_PROCESS);\n', "x.js"),
     "unbalanced-regex-literal": W("let r = /[(]/;\n" + "let z = 1;\n" * 60 + "console.log(DETACHED_PROCESS);\n", "x.js"),
     "js-template-in-call": W("run(`\ncreationflags: NO_WINDOW\nretries: 8\n`);\n", "x.js"),
@@ -192,6 +206,26 @@ def test_multiedit_applies_in_order(tmp_path):
     assert decide("MultiEdit", {"file_path": str(f), "edits": edits}) == "deny"
 
 
+def test_docstring_edit_in_a_big_file(tmp_path):
+    body = ["import subprocess", "", "def outer():", "    if True:", "        x = 1"]
+    body += ["        y = %d" % i for i in range(300)]
+    body += ["    z = 2"]  # a window starting inside the 8-space block cannot tokenize this dedent
+    body += ["", "def later():", '    """Notes.', "", "    never NO_WINDOW | DETACHED_PROCESS here", '    """', "    return 1", ""]
+    f = tmp_path / "big.py"
+    f.write_text("\n".join(body), encoding="utf-8")
+    edit = {"file_path": str(f), "old_string": "    never NO_WINDOW | DETACHED_PROCESS here",
+            "new_string": "    never NO_WINDOW | DETACHED_PROCESS anywhere"}
+    assert decide("Edit", edit) == "allow"
+
+
+def test_multiedit_after_replace_all_keeps_spans(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text("foo\nfoo\nfoo\nfoo\nfoo\n\n\n\np = Popen(c,\n    creationflags=NO_WINDOW)\n", encoding="utf-8")
+    edits = [{"old_string": "NO_WINDOW)", "new_string": "NO_WINDOW | 0x8)"},
+             {"old_string": "foo", "new_string": "x" * 200, "replace_all": True}]
+    assert decide("MultiEdit", {"file_path": str(f), "edits": edits}) == "deny"
+
+
 def test_unbalanced_comment_does_not_glue_the_file(tmp_path):
     f = tmp_path / "x.js"
     f.write_text("/**\n * see (below\n */\nfunction a() {}\n" + "let z = 1;\n" * 60 + "spawn(c, {detached: true});\n",
@@ -203,13 +237,13 @@ def test_unbalanced_comment_does_not_glue_the_file(tmp_path):
 def test_bom_payload_is_read():
     payload = b"\xef\xbb\xbf" + json.dumps({"tool_name": "Write", "tool_input": {"file_path": "x.py", "content":
                                                                                 "Popen(c, creationflags=8)"}}).encode()
-    r = subprocess.run([sys.executable, "-B", str(HOOK)], input=payload, capture_output=True, timeout=30,
+    r = subprocess.run(PY + ["-B", str(HOOK)], input=payload, capture_output=True, timeout=30,
                        env=dict(os.environ, NO_DETACHED_LAUNCH_HEARTBEAT="0"))
     assert r.returncode == 0 and b'"deny"' in r.stdout
 
 
 def test_garbage_fails_open():
-    r = subprocess.run([sys.executable, "-B", str(HOOK)], input=b"{not json", capture_output=True, timeout=30,
+    r = subprocess.run(PY + ["-B", str(HOOK)], input=b"{not json", capture_output=True, timeout=30,
                        env=dict(os.environ, NO_DETACHED_LAUNCH_HEARTBEAT="0"))
     assert r.returncode == 0 and r.stdout.strip() == b""
 
@@ -224,7 +258,7 @@ def test_heartbeat_written(tmp_path):
 def test_garbage_writes_blind_marker(tmp_path):
     (tmp_path / ".claude" / "backups").mkdir(parents=True)
     e = dict(os.environ, CLAUDE_PROJECT_DIR=str(tmp_path), NO_DETACHED_LAUNCH_HEARTBEAT="1")
-    subprocess.run([sys.executable, "-B", str(HOOK)], input=b"{not json", capture_output=True, timeout=30, env=e)
+    subprocess.run(PY + ["-B", str(HOOK)], input=b"{not json", capture_output=True, timeout=30, env=e)
     hb = tmp_path / ".claude" / "backups" / ".hook-heartbeat"
     assert (hb / "no-detached-launch.blind").exists() and not (hb / "no-detached-launch").exists()
 

@@ -1,6 +1,6 @@
 """One mutant per clause of no-detached-launch.py; each must turn test_no_detached_launch.py red.
 The unmutated hook must pass first, and a kill counts only when pytest reports a FAILED test (not a crash)."""
-import shutil, subprocess, sys, tempfile
+import os, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -17,14 +17,25 @@ M = [
     ("strings-are-prose", "    bare = blank_strings(code)", "    bare = code"),
     ("key-kept", "        return s if KEY.fullmatch(s[1:-1]) else s[0] + blank(s[1:-1]) + s[-1]",
      "        return s[0] + blank(s[1:-1]) + s[-1]"),
-    ("py-key-kept", "        if KEY.fullmatch(s[q + ql:len(s) - ql]):\n            continue", "        if False:\n            continue"),
     ("python-strings", "    code = python_strings(text) if python else text", "    code = text"),
-    ("comment-cut", "        out.append(line if cut is None else line[:cut] + blank(line[cut:]))", "        out.append(line)"),
-    ("quote-tracking", "            elif ch in \"'" + BS + "\"\":\n                q = ch", "            elif False:\n                q = ch"),
-    ("batch-rem", "        if batch and re.match(", "        if False and re.match("),
-    ("block-comments", '    return re.sub(r"/' + BS + '*.*?' + BS + '*/", lambda m: blank(m.group(0)), text, flags=re.S)',
-     "    return text"),
     # statements
+    ("py-key-kept", "        if KEY.fullmatch(s[q + ql:len(s) - ql]):", "        if False:"),
+    ("fstring-middles", "        if t.type in MIDDLE_TOKENS:", "        if False:"),
+    ("line-comment", "            for k in range(i, j):\n                chars[k] = \" \"", "            for k in []:\n                chars[k] = \" \""),
+    ("quote-tracking", "        elif ch in quotes:\n            q = ch", "        elif False:\n            q = ch"),
+    ("block-comments", "            block = True\n", "            block = False\n"),
+    ("hash-only-hash-langs", 'ch == "#" and style == "hash"', 'ch == "#"'),
+    ("batch-rem", r'blank(l) if re.match(r"\s*(?i:rem\s|::)", l) else l', "l"),
+    ("comment-style-slash", '    if low_path.endswith(SLASH_FILES):\n        return "slash"', '    if False:\n        return "slash"'),
+    ("inline-script", "    for m in INLINE.finditer(plain):", "    for m in []:"),
+    ("inline-bound-to-interp", r'(?:\s+(?:-{1,2}[\w.-]+|/[a-z]))*?\s+"', r'.*?\s+"'),
+    ("nested-shells", "        if depth < 3:", "        if False:"),
+    ("quoted-written-to-code", "    for seg in segments(plain):", "    for seg in []:"),
+    ("writes-per-segment", "    for seg in segments(plain):", "    for seg in [plain]:"),
+    ("shell-files", "    shell_file = low.endswith(SHELL_FILES)", "    shell_file = False"),
+    ("replace-all-shift-count", "a + delta * sum(h < a for h in hits), b + delta * sum(h < a for h in hits)", "a + (delta if a > hits[0] else 0), b + (delta if a > hits[0] else 0)"),
+    ("window-after-tokenize", "    code = python_strings(text) if python else text\n    code = strip_comments(code, style)\n    hiding = bool(HIDING.search(code))\n    if spans:\n        code = window(code, spans)",
+     "    code = window(text, spans) if spans else text\n    code = python_strings(code) if python else code\n    code = strip_comments(code, style)\n    hiding = bool(HIDING.search(code))"),
     ("depth-ignores-strings", "        bare = blank_strings(line)", "        bare = line"),
     ("join-brackets", "        joins = depth > 0 or bare.rstrip()", "        joins = False or bare.rstrip()"),
     ("join-trailing", '        joins = depth > 0 or bare.rstrip().endswith(("|", "' + BS + BS + '")) or nxt',
@@ -51,10 +62,6 @@ M = [
     ("heredoc-code-file", "        if INTERP.search(header) or WRITES_CODE.search(header):", "        if INTERP.search(header):"),
     ("heredoc-body-not-plain", "        pos = end.end() if end else len(command)", "        pos = nl + 1"),
     ("herestring-judged", "        if INTERP.search(tail) or WRITES_CODE.search(tail):", "        if False:"),
-    ("inline-script", '        if INTERP.search(plain[:m.start()].split("' + BS + 'n")[-1]):', "        if False:"),
-    ("nested-shells", "            if depth < 3:\n                out.extend(shell_payloads(body, depth + 1))",
-     "            if False:\n                out.extend(shell_payloads(body, depth + 1))"),
-    ("quoted-written-to-code", "    if writes:", "    if False:"),
     ("quotes-blanked", "    out.append(QUOTED_ML.sub(\"''\", plain))", "    out.append(plain)"),
     ("quotes-span-lines", "    out.append(QUOTED_ML.sub(\"''\", plain))", "    out.append(QUOTED.sub(\"''\", plain))"),
     ("list-command", '            command = " ".join(map(str, command))', "            command = None"),
@@ -88,8 +95,9 @@ M = [
 
 
 def pytest_in(d):
-    return subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", d],
-                          capture_output=True, text=True)
+    # cwd=d + the file by name: on the Windows runner `pytest <tempdir>` collected nothing ("no tests ran")
+    return subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "test_no_detached_launch.py"],
+                          capture_output=True, text=True, cwd=d)
 
 
 with tempfile.TemporaryDirectory() as d:
@@ -99,6 +107,13 @@ with tempfile.TemporaryDirectory() as d:
     if base.returncode != 0:
         print(base.stdout[-2000:])
         sys.exit("baseline is not green: no mutant result means anything")
+# f-string literal tokens exist only on Python 3.12+: that mutant is equivalent (unkillable) on an older hook Python.
+HOOK_PY = os.environ.get("HOOK_PYTHON", "").split() or [sys.executable]
+has_fstring_tokens = subprocess.run(HOOK_PY + ["-c", "import tokenize,sys; sys.exit(0 if hasattr(tokenize, 'FSTRING_MIDDLE') else 1)"],
+                                    capture_output=True).returncode == 0
+if not has_fstring_tokens:
+    M = [m for m in M if m[0] != "fstring-middles"]
+    print("hook Python has no f-string tokens: fstring-middles skipped")
 bad = [name for name, a, b in M if SRC.count(a) != 1]
 if bad:
     sys.exit("mutant targets not found exactly once: " + ", ".join(bad))
