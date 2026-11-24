@@ -69,13 +69,40 @@ DENY = {
     "monitor": ("Monitor", {"command": "python -c \"from subprocess import *; Popen(['x'], creationflags=8)\""}),
     "notebook": ("NotebookEdit", {"notebook_path": "n.ipynb", "new_source": "Popen(c, creationflags=DETACHED_PROCESS)"}),
     "same-name-elsewhere": W(INCIDENT, "C:/x/other/test_no_detached_launch.py"),
+    # re-review (R2-R11)
+    "usage-constant-then-code": W('USAGE = """run it\n"""\np = Popen(c, creationflags=0x8)\ndef main():\n    """Entry."""\n'),
+    "echo-to-code-file": ("Bash", {"command": 'echo "p = Popen(c, creationflags=0x8)" > drive.py'}),
+    "printf-append-code-file": ("Bash", {"command": "printf '%s\\n' 'flags |= subprocess.DETACHED_PROCESS' >> x.py"}),
+    "ps-herestring-set-content": ("PowerShell", {"command": "@'\nPopen(c, creationflags=0x8)\n'@ | Set-Content drive.py"}),
+    "ps-herestring-python": ("PowerShell", {"command": "@'\nimport subprocess\nsubprocess.Popen(['x'], creationflags=subprocess.DETACHED_PROCESS)\n'@ | python -"}),
+    "bash-c-nested": ("Bash", {"command": "bash -c \"python -c 'import subprocess as s; s.Popen([1], creationflags=s.DETACHED_PROCESS)'\""}),
+    "cmd-c-nested": ("PowerShell", {"command": "cmd /c \"python -c \\\"Popen(c, creationflags=0x8)\\\"\""}),
+    "inline-single-quote": ("Bash", {"command": "python -c 'Popen(c, creationflags=0x8)'"}),
+    "new-console-startupinfo-none": W("Popen(c, creationflags=CREATE_NEW_CONSOLE, startupinfo=None)\n"),
+    "node-dot-detached": W("opts.detached = true;\nspawn(cmd, args, opts);\n", "x.js"),
+    "node-json-detached": W('spawn(cmd, args, {"detached": true});\n', "x.js"),
+    "js-slashes-in-string": W('spawn(" //x", {detached: true});\n', "x.js"),
+    "spawn-only-use":W("spawn(cmd, DETACHED_PROCESS)\n", "x.js"),
+    "leading-or-join": W("var creationflags = NO_WINDOW\n    | 0x8;\n", "x.cs"),
+    "backslash-join": W("x = dict(a=1)\ncreationflags = NO_WINDOW \\\n    + 0x8\n"),
 }
 
 ALLOW = {
     "prose-docstring": W('"""Windows: a hidden console, never CREATE_NO_WINDOW | DETACHED_PROCESS."""\nx = 1\n'),
     "string-mention": W('msg = "never use DETACHED_PROCESS"\n'),
-    "hidden-new-console": W("p = subprocess.run(c, creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=si)\n"),
-    "hidden-new-console-literal": W("p = subprocess.run(c, creationflags=0x10, startupinfo=si)\n"),
+    "hidden-new-console": W("si.wShowWindow = SW_HIDE\np = subprocess.run(c, creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=si)\n"),
+    "hidden-new-console-literal": W("si.wShowWindow = win32con.SW_HIDE\np = subprocess.run(c, creationflags=0x10, startupinfo=si)\n"),
+    "multiline-prose-string": W('X = """\nNO_WINDOW | DETACHED_PROCESS\n"""\n'),
+    "string-holds-flags": W('raise SystemExit("never use creationflags=0x8")\n'),
+    "inline-print-flags": ("Bash", {"command": "python -c \"print('was creationflags=8')\""}),
+    "bracket-string-in-value": W('p = Popen(c, creationflags=pick("(", 0x200), timeout=8)\n'),
+    "js-block-comment": W("/* old: spawn(c, {detached: true}) */\nspawn(c, {windowsHide: true});\n", "x.js"),
+    "js-bracket-in-string": W('let o = "(";\nconsole.log(DETACHED_PROCESS);\n', "x.js"),
+    "unbalanced-regex-literal": W("let r = /[(]/;\n" + "let z = 1;\n" * 60 + "console.log(DETACHED_PROCESS);\n", "x.js"),
+    "js-template-in-call": W("run(`\ncreationflags: NO_WINDOW\nretries: 8\n`);\n", "x.js"),
+    "ps-herestring-notes":("PowerShell", {"command": "@'\ncreationflags=0x8 was the bug\n'@ | Set-Content notes.md"}),
+    "echo-to-notes":("Bash", {"command": 'echo "creationflags=0x8 was the bug" > notes.md'}),
+    "multiline-commit": ("Bash", {"command": "git commit -m 'fix\n\ncreationflags=0x8 was the bug'"}),
     "flag-then-other-kwargs":W("p = subprocess.run(cmd, capture_output=True, creationflags=0x08000000, timeout=120)\n"),
     "value-ends-at-line": W('options = dict(\n    x=1)\nif nt:\n    options["creationflags"] = NO_WINDOW\nelse:\n    tail = 64 * 1024 + 8\n'),
     "code-in-long-string": W("patch('''\nif nt:\n    options[\"creationflags\"] = NO_WINDOW\ntail = 64 * 1024 + 8\n''')\n"),
@@ -132,6 +159,47 @@ def test_edit_elsewhere_in_a_file_with_an_old_bad_line_is_allowed(tmp_path):
     assert decide("Edit", {"file_path": str(f), "old_string": "return 1", "new_string": "return 2"}) == "allow"
 
 
+def test_edit_below_a_docstring(tmp_path):
+    f = tmp_path / "drive.py"
+    f.write_text('"""Driver for the headless run.\n\nMore text.\n"""\nimport subprocess\n'
+                 "p = subprocess.Popen(cmd,\n    creationflags=NO_WINDOW | 0x00000200)\n", encoding="utf-8")
+    edit = {"file_path": str(f), "old_string": "NO_WINDOW | 0x00000200)", "new_string": "NO_WINDOW | 0x00000200 | 0x00000008)"}
+    assert decide("Edit", edit) == "deny"
+
+
+def test_replace_all_judges_every_site(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text("GROUP = 0x00000200\n\n\n\np = Popen(c, creationflags=NO_WINDOW | 0x00000200)\n", encoding="utf-8")
+    edit = {"file_path": str(f), "old_string": "0x00000200", "new_string": "0x00000208", "replace_all": True}
+    assert decide("Edit", edit) == "deny"
+
+
+def test_crlf_file_multiline_old_string(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_bytes(b"p = subprocess.Popen(cmd,\r\n    creationflags=NO_WINDOW\r\n    | GROUP)\r\nq = 1\r\n")
+    # the new text alone holds no creationflags: only judging it IN the file (LF-normalised) sees the bit
+    edit = {"file_path": str(f), "old_string": "NO_WINDOW\n    | GROUP)", "new_string": "NO_WINDOW\n    | GROUP | 8)"}
+    assert decide("Edit", edit) == "deny"
+    harmless = {"file_path": str(f), "old_string": "    | GROUP)\nq = 1", "new_string": "    | GROUP)\nq = 2"}
+    assert decide("Edit", harmless) == "allow"
+
+
+def test_multiedit_applies_in_order(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text("p = Popen(c,\n    creationflags=NO_WINDOW)\n", encoding="utf-8")
+    edits = [{"old_string": "NO_WINDOW)", "new_string": "NO_WINDOW | GROUP)"},
+             {"old_string": "GROUP)", "new_string": "GROUP | 0x8)"}]
+    assert decide("MultiEdit", {"file_path": str(f), "edits": edits}) == "deny"
+
+
+def test_unbalanced_comment_does_not_glue_the_file(tmp_path):
+    f = tmp_path / "x.js"
+    f.write_text("/**\n * see (below\n */\nfunction a() {}\n" + "let z = 1;\n" * 60 + "spawn(c, {detached: true});\n",
+                 encoding="utf-8")
+    edit = {"file_path": str(f), "old_string": "function a() {}", "new_string": "function a() { return 1; }"}
+    assert decide("Edit", edit) == "allow"
+
+
 def test_bom_payload_is_read():
     payload = b"\xef\xbb\xbf" + json.dumps({"tool_name": "Write", "tool_input": {"file_path": "x.py", "content":
                                                                                 "Popen(c, creationflags=8)"}}).encode()
@@ -151,6 +219,14 @@ def test_heartbeat_written(tmp_path):
     run("Bash", {"command": "git status"}, env={"CLAUDE_PROJECT_DIR": str(tmp_path), "NO_DETACHED_LAUNCH_HEARTBEAT": "1"})
     beat = (tmp_path / ".claude" / "backups" / ".hook-heartbeat" / "no-detached-launch").read_text()
     assert beat.split()[1].startswith("payload_bytes=") and int(beat.split("=")[1]) > 10
+
+
+def test_garbage_writes_blind_marker(tmp_path):
+    (tmp_path / ".claude" / "backups").mkdir(parents=True)
+    e = dict(os.environ, CLAUDE_PROJECT_DIR=str(tmp_path), NO_DETACHED_LAUNCH_HEARTBEAT="1")
+    subprocess.run([sys.executable, "-B", str(HOOK)], input=b"{not json", capture_output=True, timeout=30, env=e)
+    hb = tmp_path / ".claude" / "backups" / ".hook-heartbeat"
+    assert (hb / "no-detached-launch.blind").exists() and not (hb / "no-detached-launch").exists()
 
 
 def test_reason_names_the_fix():

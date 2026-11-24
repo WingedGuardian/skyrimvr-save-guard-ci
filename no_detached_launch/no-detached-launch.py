@@ -8,39 +8,158 @@ CREATE_NO_WINDOW alone gives the child a hidden console its own children inherit
 caller (measured), so detaching is never needed for that.
 
 What is checked:
-- Write / Edit / MultiEdit / NotebookEdit on CODE files. An Edit is judged on the file AFTER the edit, statement by
-  statement around the changed text, so a small edit that appends `| 0x8` to an existing creationflags line is seen.
-- Bash / PowerShell / Monitor: only text that runs as code: `-c`/`-e`/`-Command` scripts, heredoc bodies fed to an
-  interpreter or written to a code file, and the unquoted command itself. Commit messages and search patterns are
-  quoted arguments and are not judged.
-Refused (outside comments and docstrings), per logical statement (bracketed and `|`-continued lines joined):
-- DETACHED_PROCESS or CREATE_NEW_CONSOLE used as a flag (creationflags / Popen / CreateProcess / `|` / `|=` /
-  assignment), not negated with `~`;
-- a creationflags value holding an integer literal with bit 0x8 (detached) or 0x10 (new console), not under `~`;
-- Node `detached: true` (libuv sets DETACHED_PROCESS on Windows).
-Unreadable input fails OPEN; the refusal is a JSON deny (Claude Code and Codex). Every parsed payload writes a
-heartbeat for tools/hook-canary.sh.
+- Write / Edit / MultiEdit / NotebookEdit on CODE files. An Edit is judged on the file AFTER the edit (edits applied
+  in order), statement by statement around each changed span, so a small edit that appends `| 0x8` to an existing
+  creationflags line is seen.
+- Bash / PowerShell / Monitor: text that runs or is written as code: -c/-e/-Command and /c bodies after an
+  interpreter or shell (nested up to 3 levels), heredoc and PowerShell here-string bodies fed to an interpreter or
+  written to a code file, quoted arguments of a command that writes a code file, and the unquoted command itself.
+  Commit messages and search patterns are quoted arguments of other commands and are not judged.
+Refused, per logical statement (bracketed and `|`-continued lines joined, at most 50 lines; comments, docstrings and
+string contents blanked to the same length):
+- DETACHED_PROCESS, or CREATE_NEW_CONSOLE without a hiding STARTUPINFO (SW_HIDE in the same text), used as a flag
+  (creationflags / Popen / CreateProcess / spawn / `|` / `|=` / assignment) and not negated with `~`;
+- a creationflags value holding an integer literal with bit 0x8, or 0x10 without a hiding STARTUPINFO;
+- Node `detached: true` / `.detached = true` (libuv sets DETACHED_PROCESS on Windows).
+Unreadable input fails OPEN; the refusal is a JSON deny (Claude Code and Codex). Each parsed payload writes a
+heartbeat for tools/hook-canary.sh; an unparseable one writes the .blind marker.
 """
+import io
 import json
 import os
 import re
 import sys
 import time
+import tokenize
 
 NAMES = r"(?:DETACHED_PROCESS|CREATE_NEW_CONSOLE)"
 NAMED = re.compile(r"(?<![\w.])(?:[A-Za-z_]\w*\.)*" + NAMES + r"\b")
 NAMED_USE = re.compile(r"creation_?flags|Popen|CreateProcess|spawn|(?<!\\)\||\|=|(?<![=!<>])=(?!=)")
 FLAGS = re.compile(r"creation_?flags[\"'\]]*\s*(?:[=:(]|\|=)\s*", re.I)
-QUOTED = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
+QUOTED = re.compile(r"\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'")
+QUOTED_ML = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'")  # shell quoting: may span lines; '...' has no escapes
+LITERAL = re.compile(r"(~\s*\(?\s*)?(?<![\w.])(0[xX][0-9a-fA-F]+|\d+)(?![\w.])")
+NODE_DETACHED = re.compile(r"""(?:\bdetached["']?\s*:|\.detached\s*=)\s*true\b""")
+HIDING = re.compile(r"SW_HIDE|wShowWindow\s*=\s*0\b")
+CODE_FILES = (".py", ".pyw", ".pyi", ".ps1", ".psm1", ".psd1", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".cs",
+              ".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".ahk", ".bat", ".cmd", ".sh", ".bash", ".zsh", ".vbs",
+              ".rs", ".go", ".java", ".ipynb")
+SELF = ("no-detached-launch.py", "test_no_detached_launch.py", "mutate.py", "replay_history.py")
+INTERP = re.compile(r"(?i)(?<![\w.-])(python[\d.]*w?|py|pythonw|node|deno|bun|pwsh|powershell|bash|sh|cmd)(\.exe)?(?![\w-])")
+CODE_PATH = r"[\"']?[^\s\"'|;&<>]+(?:" + "|".join(re.escape(e) for e in CODE_FILES) + r")\b"
+WRITES_CODE = re.compile(r"(?i)(?:>>?\s*" + CODE_PATH + r"|\b(?:Set-Content|Add-Content|Out-File|tee)\b[^|;\n]*?" +
+                         CODE_PATH + ")")
+HEREDOC = re.compile(r"(?<!<)<<(?!<)-?[ \t]*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+HERESTRING = re.compile(r"@(['\"])\r?\n(.*?)\r?\n\1@", re.S)
+INLINE = re.compile(r"(?i)(?:^|\s)(?:-c|-e|--eval|-Command|/c|/k)\s+(\"(?:[^\"\\]|\\.)*\"|'[^']*')")
+WINDOW = 200          # lines judged on each side of an edit
+MAX_FILE = 4_000_000  # bytes; a bigger file is judged on the new text only
+MAX_JOIN = 50         # physical lines one statement may span
 
 
-def flag_values(code):
-    """Each creationflags value: from after `creationflags=` to the next top-level `,` `;` or closing bracket."""
+# ---- same-length blanking ------------------------------------------------------------------------------------------
+
+def blank(s):
+    return re.sub(r"[^\n]", " ", s)
+
+
+KEY = re.compile(r"(?i)creation_?flags|detached")  # keys kept visible: kw["creationflags"], {"detached": true}
+
+
+def blank_strings(text, rx=QUOTED):
+    """String contents to spaces, quotes kept, same length (so offsets survive). A string that IS the key
+    `creationflags` (kw["creationflags"] = 8) is kept, so the flag value is still found."""
+    def one(m):
+        s = m.group(0)
+        return s if KEY.fullmatch(s[1:-1]) else s[0] + blank(s[1:-1]) + s[-1]
+    return rx.sub(one, text)
+
+
+def strip_comments(text, batch=False):
+    """Same-length: # and // line comments outside quotes, /* */ blocks, REM/:: lines in batch files."""
+    out, lines = [], text.split("\n")
+    for line in lines:
+        if batch and re.match(r"\s*(?i:rem\s|::)", line):
+            out.append(blank(line))
+            continue
+        q, i, cut = None, 0, None
+        while i < len(line):
+            ch = line[i]
+            if q:
+                if ch == "\\":
+                    i += 2
+                    continue
+                if ch == q:
+                    q = None
+            elif ch in "'\"":
+                q = ch
+            elif (ch == "#" or line.startswith("//", i)) and (i == 0 or line[i - 1] in " \t;(,"):
+                cut = i
+                break
+            i += 1
+        out.append(line if cut is None else line[:cut] + blank(line[cut:]))
+    text = "\n".join(out)
+    return re.sub(r"/\*.*?\*/", lambda m: blank(m.group(0)), text, flags=re.S)
+
+
+def python_strings(text):
+    """Same-length, by Python's own tokenizer: blank the contents of every string token (docstrings and multi-line
+    prose included; prefix and quotes kept), except a string that is the key `creationflags`. Untokenizable text
+    (a partial window, a syntax error) is returned unchanged."""
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return text
+    starts = [0]
+    for line in text.split("\n"):
+        starts.append(starts[-1] + len(line) + 1)
+    chars = list(text)
+    for t in toks:
+        if t.type != tokenize.STRING:
+            continue
+        s = t.string
+        q = min(i for i in (s.find('"'), s.find("'")) if i >= 0)
+        ql = 3 if s[q:q + 3] in ('"""', "'''") else 1
+        if KEY.fullmatch(s[q + ql:len(s) - ql]):
+            continue
+        a = starts[t.start[0] - 1] + t.start[1] + q + ql
+        b = starts[t.end[0] - 1] + t.end[1] - ql
+        for k in range(a, min(b, len(chars))):
+            if chars[k] != "\n":
+                chars[k] = " "
+    return "".join(chars)
+
+
+def statements(code):
+    """Logical statements of blanked CODE: [(start, end, text)], text being the original slice (same offsets)."""
+    lines = code.split("\n")
+    out, start, depth, pos, n = [], 0, 0, 0, 0
+    for idx, line in enumerate(lines):
+        if n == 0:
+            start = pos
+        n += 1
+        bare = blank_strings(line)
+        depth = max(depth + sum(bare.count(c) for c in "([{") - sum(bare.count(c) for c in ")]}"), 0)
+        pos += len(line) + 1
+        nxt = lines[idx + 1].lstrip() if idx + 1 < len(lines) else ""
+        joins = depth > 0 or bare.rstrip().endswith(("|", "\\")) or nxt.startswith("|") and not nxt.startswith("||")
+        if joins and idx + 1 < len(lines) and n < MAX_JOIN:
+            continue
+        out.append((start, pos, code[start:pos]))
+        n, depth = 0, 0
+    return out
+
+
+# ---- the rule -----------------------------------------------------------------------------------------------------
+
+def flag_values(bare):
+    """Each creationflags value in string-blanked BARE: up to the next top-level `,` `;`, closing bracket, or a line
+    end outside brackets that is not continued with `|`."""
     out = []
-    for m in FLAGS.finditer(code):
+    for m in FLAGS.finditer(bare):
         depth, i = 0, m.end()
-        while i < len(code):
-            ch = code[i]
+        while i < len(bare):
+            ch = bare[i]
             if ch in "([{":
                 depth += 1
             elif ch in ")]}":
@@ -49,83 +168,18 @@ def flag_values(code):
                 depth -= 1
             elif ch in ",;" and depth == 0:
                 break
-            elif ch == "\n" and depth == 0 and not (code[m.end():i].rstrip().endswith("|") or
-                                                     code[i + 1:].lstrip().startswith("|")):
+            elif ch == "\n" and depth == 0 and not (bare[m.end():i].rstrip().endswith(("|", "\\")) or
+                                                     bare[i + 1:].lstrip().startswith("|")):
                 break  # a value continues past a line end only inside brackets or around `|`
             i += 1
-        out.append(code[m.end():i])
-    return out
-LITERAL = re.compile(r"(~\s*\(?\s*)?(?<![\w.])(0[xX][0-9a-fA-F]+|\d+)(?![\w.])")
-NODE_DETACHED = re.compile(r"\bdetached\s*:\s*true\b")
-CODE_FILES = (".py", ".pyw", ".pyi", ".ps1", ".psm1", ".psd1", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".cs",
-              ".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".ahk", ".bat", ".cmd", ".sh", ".bash", ".zsh", ".vbs",
-              ".rs", ".go", ".java", ".ipynb")
-SELF = ("no-detached-launch.py", "test_no_detached_launch.py", "mutate.py", "replay_history.py")
-INTERP = re.compile(r"(?i)(?<![\w.-])(python[\d.]*w?|py|pythonw|node|deno|bun|pwsh|powershell)(\.exe)?(?![\w-])")
-CODE_TARGET = re.compile(r">\s*[\"']?[^\s\"'|;&]+(" + "|".join(re.escape(e) for e in CODE_FILES) + r")\b", re.I)
-HEREDOC = re.compile(r"(?<!<)<<(?!<)-?[ \t]*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-INLINE = re.compile(r"(?i)(?:^|\s)(?:-c|-e|--eval|-Command|-EncodedCommand_never)\s+(\"(?:[^\"\\]|\\.)*\"|'[^']*')")
-
-
-# ---- text shaping -------------------------------------------------------------------------------------------------
-
-def strip_comments(line, batch=False):
-    """Cut a trailing comment (# or //) that is outside quotes; REM/:: only at line start of batch files."""
-    if batch and re.match(r"\s*(?i:rem\s|::)", line):
-        return ""
-    q = None
-    i = 0
-    while i < len(line):
-        ch = line[i]
-        if q:
-            if ch == "\\":
-                i += 2
-                continue
-            if ch == q:
-                q = None
-        elif ch in "'\"":
-            q = ch
-        elif (ch == "#" or line.startswith("//", i)) and (i == 0 or line[i - 1] in " \t;(,"):
-            return line[:i]
-        i += 1
-    return line
-
-
-def drop_docstrings(text):
-    """Blank triple-quoted blocks that start a line (docstrings / prose), keeping line count."""
-    return re.sub(r'(?m)^([ \t]*[rRuUbB]?)("""|\'\'\')(.*?)\2',
-                  lambda m: m.group(1) + "\n" * m.group(0).count("\n"), text, flags=re.S)
-
-
-def statements(text, batch=False):
-    """Logical statements: (start_offset, end_offset, joined_code). Lines join while brackets are open or a line
-    ends with `|`, or the next line starts with `|`. Comments are cut per line first."""
-    lines = text.split("\n")
-    out, buf, start, depth, pos = [], [], 0, 0, 0
-    for idx, raw in enumerate(lines):
-        code = strip_comments(raw, batch)
-        if not buf:
-            start = pos
-        buf.append(code)
-        unquoted = QUOTED.sub("''", code)
-        depth += sum(unquoted.count(c) for c in "([{") - sum(unquoted.count(c) for c in ")]}")
-        depth = max(depth, 0)
-        pos += len(raw) + 1
-        nxt = lines[idx + 1].lstrip() if idx + 1 < len(lines) else ""
-        if depth > 0 or code.rstrip().endswith(("|", "\\")) or nxt.startswith("|") and not nxt.startswith("||"):
-            if idx + 1 < len(lines):
-                continue
-        out.append((start, pos, "\n".join(buf)))
-        buf, depth = [], 0
+        out.append(bare[m.end():i])
     return out
 
 
-# ---- the rule -----------------------------------------------------------------------------------------------------
-
-def bad_statement(code):
-    """True when one logical statement launches detached / into a new console."""
-    bare = QUOTED.sub("''", code)  # a name inside a string is prose
-    hidden_console = "startupinfo" in bare.lower()  # a NEW console with a STARTUPINFO (SW_HIDE) can be hidden
+def bad_statement(code, hiding):
+    """True when one logical statement (comments/docstrings already blanked) launches detached / new console."""
+    bare = blank_strings(code)
+    hidden_console = hiding and "startupinfo" in bare.lower()
     for m in NAMED.finditer(bare):
         if re.search(r"~\s*\(?\s*$", bare[:m.start()]):
             continue  # flags & ~DETACHED_PROCESS removes it
@@ -133,7 +187,7 @@ def bad_statement(code):
             continue
         if NAMED_USE.search(bare):
             return True
-    for expr in flag_values(code):
+    for expr in flag_values(bare):
         for neg, lit in LITERAL.findall(expr):
             if neg:
                 continue
@@ -145,25 +199,26 @@ def bad_statement(code):
                 continue
             if value & 0x8 or value & 0x10 and not hidden_console:
                 return True
-    return bool(NODE_DETACHED.search(code))
+    return bool(NODE_DETACHED.search(bare))
 
 
-def first_bad(text, span=None, batch=False, python=False):
-    """The first offending statement text, or None. SPAN (start, end) limits to statements overlapping it."""
-    if python:
-        text = drop_docstrings(text)
-    for s, e, code in statements(text, batch):
-        if span and (e <= span[0] or s > span[1]):
+def first_bad(text, spans=None, batch=False, python=False):
+    """The first offending statement, or None. SPANS [(start, end)] limit to statements overlapping any span."""
+    code = python_strings(text) if python else text
+    code = strip_comments(code, batch)
+    hiding = bool(HIDING.search(code))
+    for s, e, stmt in statements(code):
+        if spans and not any(s < b + 1 and e > a for a, b in spans):
             continue
-        if bad_statement(code):
-            return " ".join(code.split())
+        if bad_statement(stmt, hiding):
+            return " ".join(stmt.split())
     return None
 
 
-def shell_payloads(command):
-    """The parts of a shell command that run as code: heredoc bodies fed to an interpreter or written to a code file,
-    inline -c/-e/-Command scripts, and the command text with quotes and other heredoc bodies blanked."""
+def shell_payloads(command, depth=0):
+    """Parts of a shell command that run as code or are written into a code file (see module docstring)."""
     out, rest, pos = [], [], 0
+    writes = bool(WRITES_CODE.search(command))
     for m in HEREDOC.finditer(command):
         if m.start() < pos:
             continue
@@ -173,34 +228,75 @@ def shell_payloads(command):
         header = command[command.rfind("\n", 0, m.start()) + 1:nl]
         end = re.compile(r"(?m)^[ \t]*" + re.escape(m.group(2)) + r"[ \t]*$").search(command, nl + 1)
         body_end = end.start() if end else len(command)
-        if INTERP.search(header) or CODE_TARGET.search(header):
+        if INTERP.search(header) or WRITES_CODE.search(header):
             out.append(command[nl + 1:body_end])
         rest.append(command[pos:nl + 1])
         pos = end.end() if end else len(command)
     rest.append(command[pos:])
     plain = "".join(rest)
+    for m in HERESTRING.finditer(plain):  # PowerShell @' ... '@ | python - / | Set-Content x.py
+        tail = plain[m.end():m.end() + 200].split("\n")[0]
+        if INTERP.search(tail) or WRITES_CODE.search(tail):
+            out.append(m.group(2))
+    plain = HERESTRING.sub(lambda m: blank(m.group(0)), plain)
     for m in INLINE.finditer(plain):
         if INTERP.search(plain[:m.start()].split("\n")[-1]):
             body = m.group(1)[1:-1]
-            out.append(body.replace('\\"', '"') if m.group(1)[0] == '"' else body)
-    blanked = re.sub(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'", "''", plain)
-    out.append(blanked)
+            body = body.replace('\\"', '"') if m.group(1)[0] == '"' else body
+            out.append(body)
+            if depth < 3:
+                out.extend(shell_payloads(body, depth + 1))
+    if writes:  # echo "..." > x.py / printf '...' >> x.py / '...' | Set-Content x.py
+        out.extend(m.group(0)[1:-1].replace("\\n", "\n") for m in QUOTED_ML.finditer(plain))
+    out.append(QUOTED_ML.sub("''", plain))
     return out
 
 
-def after_edit(path, old, new, replace_all):
-    """(text_after, span_of_new) for an Edit, or None when the file cannot be read / old is absent."""
+def after_edits(path, edits):
+    """(text_after, spans) applying EDITS in order to the file, LF-normalised; None when not applicable."""
     try:
+        if os.path.getsize(path) > MAX_FILE:
+            return None
         with open(path, encoding="utf-8", errors="replace", newline="") as f:
-            text = f.read()
+            text = f.read().replace("\r\n", "\n")
     except OSError:
         return None
-    i = text.find(old) if old else -1
-    if i < 0:
-        return None
-    result = text.replace(old, new) if replace_all else text[:i] + new + text[i + len(old):]
-    return result.replace("\r\n", "\n"), (text[:i].replace("\r\n", "\n").__len__(),
-                                          text[:i].replace("\r\n", "\n").__len__() + len(new.replace("\r\n", "\n")))
+    spans = []
+    for e in edits:
+        old = str(e.get("old_string") or "").replace("\r\n", "\n")
+        new = str(e.get("new_string") or "").replace("\r\n", "\n")
+        if not old or old not in text:
+            return None
+        hits, i = [], text.find(old)
+        while i >= 0:
+            hits.append(i)
+            if not e.get("replace_all"):
+                break
+            i = text.find(old, i + len(old))
+        shift, delta = 0, len(new) - len(old)
+        spans = [(a + (delta if a > hits[0] else 0), b + (delta if a > hits[0] else 0)) for a, b in spans]
+        for h in hits:
+            spans.append((h + shift, h + shift + len(new)))
+            shift += delta
+        text = text.replace(old, new) if e.get("replace_all") else text[:hits[0]] + new + text[hits[0] + len(old):]
+    return text, spans
+
+
+def window(text, spans):
+    """Cut TEXT to WINDOW lines around SPANS (same offsets: outside lines are blanked)."""
+    lo = max(0, min(a for a, _ in spans))
+    hi = max(b for _, b in spans)
+    a = text.rfind("\n", 0, lo)
+    for _ in range(WINDOW):
+        a = text.rfind("\n", 0, a) if a > 0 else -1
+    b = hi
+    for _ in range(WINDOW):
+        b = text.find("\n", b + 1)
+        if b < 0:
+            b = len(text)
+            break
+    a = max(a, 0)
+    return blank(text[:a]) + text[a:b] + blank(text[b:])
 
 
 def judge(tool, inp):
@@ -224,21 +320,28 @@ def judge(tool, inp):
         return None  # notes and docs may describe the flag; the hook's own packet must stay editable
     batch, python = low.endswith((".bat", ".cmd")), low.endswith((".py", ".pyw", ".pyi"))
     if tool == "Write":
-        return first_bad(str(inp.get("content") or ""), batch=batch, python=python)
+        content = str(inp.get("content") or "")
+        if low.endswith(".ipynb"):
+            try:
+                content = "\n".join("".join(c.get("source") or []) for c in json.loads(content).get("cells", []))
+                python = True
+            except (ValueError, AttributeError, TypeError):
+                pass
+        return first_bad(content, batch=batch, python=python)
     if tool == "NotebookEdit":
         return first_bad(str(inp.get("new_source") or ""), python=True)
     edits = [inp] if tool == "Edit" else [e for e in (inp.get("edits") or []) if isinstance(e, dict)]
-    for e in edits:
-        new = str(e.get("new_string") or "")
-        done = after_edit(path, str(e.get("old_string") or ""), new, bool(e.get("replace_all")))
-        hit = (first_bad(done[0], span=done[1], batch=batch, python=python) if done
-               else first_bad(new, batch=batch, python=python))
+    done = after_edits(path, edits)
+    if done and done[1]:
+        return first_bad(window(*done), spans=done[1], batch=batch, python=python)
+    for e in edits:  # file unreadable / old text absent: judge the new text alone
+        hit = first_bad(str(e.get("new_string") or ""), batch=batch, python=python)
         if hit:
             return hit
     return None
 
 
-def heartbeat(payload_bytes):
+def heartbeat(name, payload_bytes):
     """hook-canary.sh contract: <root>/.claude/backups/.hook-heartbeat/<name> = 'YYYYMMDD_HHMMSS payload_bytes=N'."""
     try:
         root = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.dirname(os.path.dirname(os.path.dirname(
@@ -246,19 +349,24 @@ def heartbeat(payload_bytes):
         d = os.path.join(root, ".claude", "backups", ".hook-heartbeat")
         if os.path.isdir(os.path.dirname(d)):
             os.makedirs(d, exist_ok=True)
-            name = "no-detached-launch" + ("" if payload_bytes else ".blind")
             with open(os.path.join(d, name), "w", encoding="utf-8") as f:
                 f.write("{} payload_bytes={}\n".format(time.strftime("%Y%m%d_%H%M%S"), payload_bytes))
-    except OSError:
+    except Exception:
         pass
 
 
 def main():
+    beat = os.environ.get("NO_DETACHED_LAUNCH_HEARTBEAT", "1") == "1"
     try:
         raw = sys.stdin.buffer.read()
-        if os.environ.get("NO_DETACHED_LAUNCH_HEARTBEAT", "1") == "1":
-            heartbeat(len(raw))
-        payload = json.loads(raw.decode("utf-8-sig", "replace"))
+        try:
+            payload = json.loads(raw.decode("utf-8-sig", "replace"))
+        except ValueError:
+            if beat:
+                heartbeat("no-detached-launch.blind", len(raw))
+            raise
+        if beat:
+            heartbeat("no-detached-launch" if isinstance(payload, dict) else "no-detached-launch.blind", len(raw))
         hit = judge(payload.get("tool_name"), payload.get("tool_input") or {})
     except Exception as error:  # fail open: a parser bug must not block every edit
         print("no-detached-launch: could not read the call ({}); allowed".format(type(error).__name__), file=sys.stderr)
