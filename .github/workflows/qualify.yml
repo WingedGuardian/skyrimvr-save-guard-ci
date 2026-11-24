@@ -85,7 +85,8 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install locked dependencies
-        run: python -m pip install --only-binary=:all: --require-hashes -r no_detached_launch/requirements.lock
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r no_detached_launch/requirements.lock
       - name: Packet bytes match the manifest
         run: python no_detached_launch/verify_manifest.py
       - name: Hook tests
